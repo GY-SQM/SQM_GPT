@@ -325,7 +325,8 @@ def _tonbag_sql(lot_no_filter: Optional[str]) -> tuple:
                    NULLIF(TRIM(COALESCE(i.remarks, '')), '')
                ),
                i.warehouse,
-               t.lot_no
+               i.arrival_date,
+               t.lot_no, t.is_sample
         FROM inventory_tonbag t
         LEFT JOIN inventory i ON i.id = t.inventory_id
     """
@@ -339,9 +340,11 @@ def _append_tonbag_rack_candidates(rows, con: sqlite3.Connection):
     candidates = load_latest_candidates(con)
     sub_lts_by_lot: dict[str, list[int]] = {}
     for r in rows:
-        lot_no = str(r[15] or "").strip() if len(r) > 15 else ""
+        # idx 16 = t.lot_no, idx 17 = t.is_sample (arrival_date 추가로 idx 15→16 이동)
+        lot_no = str(r[16] or "").strip() if len(r) > 16 else ""
         sub_lt = r[5] if len(r) > 5 else None
-        if lot_no and sub_lt is not None:
+        is_sample = r[17] if len(r) > 17 else 0
+        if lot_no and sub_lt is not None and not is_sample:
             try:
                 sub_lts_by_lot.setdefault(lot_no, []).append(int(sub_lt))
             except Exception:
@@ -355,14 +358,21 @@ def _append_tonbag_rack_candidates(rows, con: sqlite3.Connection):
     out = []
     for r in rows:
         row = list(r)
-        lot_no = str(row[15] or "").strip() if len(row) > 15 else ""
+        lot_no = str(row[16] or "").strip() if len(row) > 16 else ""
         rack_candidate = ""
         try:
             rack_candidate = expanded_by_lot.get(lot_no, {}).get(int(row[5]), "")
         except Exception:
             rack_candidate = ""
-        # Drop hidden lot_no and insert candidate after actual location.
-        out.append(tuple(row[:10] + [rack_candidate] + row[10:15]))
+        # Drop hidden lot_no/is_sample (idx 16,17) and rebuild output tuple.
+        is_sample = row[17] if len(row) > 17 else 0
+        # v8.6.9+: arrival_date(SQL idx 15) 삽입 — inbound_date(10) 바로 뒤
+        out.append(tuple(
+            list(row[:10]) + [rack_candidate] +
+            [row[10], row[15]] +   # inbound_date, arrival_date
+            list(row[11:15]) +     # sold_to, sale_ref, remarks, warehouse
+            [is_sample]
+        ))
     return out
 
 
@@ -382,7 +392,7 @@ def _build_tonbag_workbook(rows):
     headers = [
         "SAP NO", "BL NO", "Container", "제품명",
         "톤백 UID", "Sub LT", "톤백 번호", "중량(kg)",
-        "상태", "실제 위치", "랙 위치 후보", "입고일", "출고대상", "Sale Ref", "비고", "창고"
+        "상태", "실제 위치", "랙 위치 후보", "입고일", "도착일", "출고대상", "Sale Ref", "비고", "창고", "샘플여부"
     ]
     hdr_fill = PatternFill("solid", fgColor="1F4E79")
     hdr_font = Font(bold=True, color="FFFFFF", name="맑은 고딕")
@@ -403,7 +413,10 @@ def _build_tonbag_workbook(rows):
         "RETURN": "FFEBEE",
     }
     for r in rows:
-        ws.append(list(r))
+        row_data = list(r)
+        if len(row_data) > 17:
+            row_data[17] = 'SP' if row_data[17] else '일반'
+        ws.append(row_data)
         status = r[8] or ""
         color  = status_colors.get(status, "FFFFFF")
         fill   = PatternFill("solid", fgColor=color)
@@ -411,8 +424,8 @@ def _build_tonbag_workbook(rows):
             cell.fill = fill
             cell.alignment = center
 
-    # 열 너비: SAP,BL,Container,제품명,UID,SubLT,#,중량,상태,실제위치,후보,입고일,출고,SaleRef,비고,창고
-    widths = [12, 14, 16, 22, 20, 8, 10, 12, 12, 12, 14, 12, 14, 14, 20, 10]
+    # 열 너비: SAP,BL,Container,제품명,UID,SubLT,#,중량,상태,실제위치,후보,입고일,도착일,출고,SaleRef,비고,창고,샘플여부
+    widths = [12, 14, 16, 22, 20, 8, 10, 12, 12, 12, 14, 12, 12, 14, 14, 20, 10, 8]
     for i, w in enumerate(widths, 1):
         ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
@@ -453,8 +466,8 @@ def export_tonbag_excel(lot_no: Optional[str] = QP(None)):
 _TONBAG_LIST_JSON_HEADERS = [
     "sap_no", "bl_no", "container_no", "product",
     "tonbag_uid", "sub_lt", "tonbag_no", "weight_kg",
-    "status", "location", "rack_location_candidate", "inbound_date", "sold_to",
-    "sale_ref", "remarks", "warehouse",
+    "status", "location", "rack_location_candidate", "inbound_date", "arrival_date", "sold_to",
+    "sale_ref", "remarks", "warehouse", "is_sample",
 ]
 
 
@@ -763,4 +776,4 @@ def swap_report_export(
             )
     except Exception as e:
         logger.error("swap-report-export error: %s", e)
-        raise HTTPException(500, str(e))
+        return err_response(str(e))

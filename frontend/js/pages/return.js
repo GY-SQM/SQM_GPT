@@ -44,7 +44,7 @@ async function load() {
     var _rfoot = document.getElementById('return-footer');
     if (_rfoot) {
       var _rbags = rows.reduce(function(s,r){return s+Number(r.bags||0);},0);
-      var _rs = 'display:inline-block;padding:2px 14px;margin-right:8px;background:rgba(79,195,247,0.13);border-radius:6px;font-size:12px;color:var(--accent,#4fc3f7);font-weight:700;';
+      var _rs = 'display:inline-block;padding:4px 18px;margin-right:10px;background:#FFD600;border-radius:8px;font-size:14px;color:#222;font-weight:800;box-shadow:0 1px 4px rgba(0,0,0,.25);';
       _rfoot.innerHTML = '<span style="'+_rs+'">🔄 반품 '+rows.length.toLocaleString('ko-KR')+' 건</span>'
         + (_rbags > 0 ? '<span style="'+_rs+'">🎒 톤백 '+_rbags.toLocaleString('ko-KR')+'</span>' : '');
     }

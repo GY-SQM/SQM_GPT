@@ -1501,6 +1501,29 @@ class OutboundMixin(InventoryBaseMixin):
                 pick_count = max(1, math.ceil(weight_kg / _unit_w))
             else:
                 pick_count = max(1, math.ceil(weight_kg / _unit_w))
+                # [v8.6.9 SAMPLE-FIX v2]: ceil 반올림 오버 보정 (정합성 강화)
+                # 조건 ①: pick_count = 가용 정상 톤백 수 + 1 (정확히 1개 초과)
+                # 조건 ②: LOT에 샘플 톤백(is_sample=1)이 실제로 존재
+                # → 두 조건 모두 만족할 때만 cap (진짜 부족 케이스는 HARD-STOP 유지)
+                if pick_count == len(tonbags) + 1:
+                    _has_sample = self.db.fetchone(
+                        "SELECT 1 FROM inventory_tonbag "
+                        "WHERE lot_no=? AND COALESCE(is_sample,0)=1 LIMIT 1",
+                        (lot_no,)
+                    )
+                    if _has_sample:
+                        logger.info(
+                            "[SAMPLE-FIX] %s: 샘플 톤백 확인 → pick_count=%d cap→%d "
+                            "(qty_mt=%.3f, unit_w=%.0fkg, ceil 반올림 보정)",
+                            lot_no, pick_count, len(tonbags), qty_mt, _unit_w
+                        )
+                        pick_count = len(tonbags)
+                    else:
+                        logger.warning(
+                            "[SAMPLE-FIX] %s: pick_count=%d > avail=%d 이나 샘플 없음 "
+                            "→ HARD-STOP 유지 (진짜 부족)",
+                            lot_no, pick_count, len(tonbags)
+                        )
             logger.debug(
                 f"[B pick_count] {lot_no}: "
                 f"qty_mt={qty_mt}→weight_kg={weight_kg}÷unit_w={_unit_w}"

@@ -43,37 +43,14 @@
       '<div class="alloc-header" style="display:flex;align-items:center;gap:12px;padding:8px 0 8px">',
       '  <h2 style="margin:0">📋 판매 배정 (Allocation)</h2>',
       '  <span id="alloc-summary-label" style="color:var(--text-muted);font-size:.9rem"></span>',
-      '  <button class="btn btn-secondary" onclick="renderPage(\'allocation\')" style="margin-left:auto">🔁 새로고침</button>',
-      '</div>',
-      /* ── 액션 툴바 (v864-2 AllocationDialog primary_buttons 매핑) ── */
-      '<div class="alloc-toolbar" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;background:var(--panel);border:1px solid var(--panel-border);border-radius:6px;margin-bottom:8px">',
-      '  <button class="btn btn-primary" onclick="window.allocUploadExcel()">📂 Excel 업로드</button>',
-      '  <button class="btn" onclick="window.allocApplyApproved()">📌 승인분 반영</button>',
-      '  <button class="btn" onclick="window.allocShowApprovalQueue()">✅ 승인 대기</button>',
-      '  <span style="width:1px;height:22px;background:var(--panel-border);margin:0 4px"></span>',
-      '  <button class="btn btn-danger" onclick="window.allocCancelSelected()">❌ 선택 배정 취소</button>',
-      '  <span style="width:1px;height:22px;background:var(--panel-border);margin:0 4px"></span>',
-      /* 백엔드 엔드포인트 미구현 — Sprint 1-1-E에서 연결 */
-      '  <button class="btn" onclick="window.allocPickSelected()" title="RESERVED → PICKED">📦 출고 실행 (PICKED)</button>',
-      '  <button class="btn" onclick="window.allocConfirmSelected()" title="PICKED → SOLD">🔒 출고 확정 (SOLD)</button>',
-      '  <button class="btn" onclick="window.allocResetSelected()" title="LOT 배정 완전 삭제">🧹 LOT 초기화</button>',
-      '  <span style="width:1px;height:22px;background:var(--panel-border);margin:0 4px"></span>',
-      '  <button class="btn btn-danger" onclick="window.allocResetAll()" title="모든 배정 취소 + AVAILABLE 원복">⚠️ 전체 초기화</button>',
-      '  <button class="btn" onclick="window.allocCancelBySaleRef()" title="SALE REF 입력 후 해당 배정 전체 취소">🔖 SALE REF 취소</button>',
-      '  <button class="btn" onclick="window.allocOpenLotOverview()" title="LOT별 배정 현황 팝업">📦 LOT 현황</button>',
-      '  <button class="btn btn-secondary" onclick="window.allocExportExcel()" title="현재 배정 데이터 Excel 다운로드">📊 Excel 내보내기</button>',
-      '</div>',
-      /* ── 단계 되돌리기 버튼 행 ── */
-      '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 8px;background:var(--panel);border:1px solid var(--panel-border);border-radius:6px;margin-bottom:8px">',
-      '  <span style="font-size:12px;font-weight:600;white-space:nowrap">&#x21A9; 단계 되돌리기:</span>',
-      '  <button class="btn" onclick="window.allocRevertStep(\'RESERVED\')" style="font-size:12px">RESERVED &rarr; AVAILABLE</button>',
-      '</div>',
-      /* ── 상태 필터 ── */
-      '<div class="alloc-filter" style="display:flex;gap:4px;margin-bottom:8px">',
-      '  <button class="alloc-filter-btn active" data-filter="all" onclick="window.allocFilterBy(\'all\')">전체</button>',
-      '  <button class="alloc-filter-btn" data-filter="RESERVED" onclick="window.allocFilterBy(\'RESERVED\')">RESERVED</button>',
-      '  <button class="alloc-filter-btn" data-filter="PICKED" onclick="window.allocFilterBy(\'PICKED\')">PICKED</button>',
-      '  <button class="alloc-filter-btn" data-filter="SOLD" onclick="window.allocFilterBy(\'SOLD\')">SOLD</button>',
+      '  <div style="margin-left:auto;display:flex;gap:6px;align-items:center">',
+      '    <button class="btn btn-primary" onclick="window.allocUploadExcel()">📂 Excel 업로드</button>',
+      '    <button class="btn btn-danger" onclick="window.allocCancelSelected()">❌ 배정 취소</button>',
+      '    <button class="btn" onclick="window.allocPickSelected()" title="RESERVED → PICKED">📦 PICKED</button>',
+      '    <button class="btn" onclick="window.allocConfirmSelected()" title="PICKED → SOLD">🔒 SOLD</button>',
+      '    <button class="btn btn-secondary" onclick="window.showAllocMoreMenu(this)" title="추가 작업">⋯ 더보기</button>',
+      '    <button class="btn btn-secondary" onclick="renderPage(\'allocation\')">🔁 새로고침</button>',
+      '  </div>',
       '</div>',
       /* ── 로딩 / 빈 상태 ── */
       '<div id="alloc-loading" style="padding:40px;text-align:center;color:var(--text-muted)">⏳ 데이터 로딩 중...</div>',
@@ -99,7 +76,7 @@
       '    <th title="피킹 중량 AR (Picked MT) — 출고 작업 중(PICKED)인 물량">AR</th>',
       '    <th>CUSTOMER</th>',
       '    <th>SALE REF</th>',
-      '    <th>OUTBOUND DATE</th>',
+      '    <th>SOLD DATE</th>',
       '    <th>WH</th>',
       '    <th>STATUS</th>',
       '  </tr></thead>',
@@ -218,12 +195,33 @@
         editTd('outbound_date', escapeHtml(r.outbound_date || r.ship_date || '-'), 'mono-cell', '') +
         '<td>' + escapeHtml(r.warehouse || r.wh || '-') + '</td>' +
         '<td><span class="tag" style="background:' + pal.bg + ';color:' + pal.fg + ';font-weight:700">' + status + '</span></td>' +
-        '</tr>';
+        '</tr>' +
+        (Number(r.sample_bags || 0) > 0 ? (
+          '<tr class="alloc-sample-subrow" data-lot="' + lot + '" style="background:#2a2200;font-size:.85em">' +
+          '<td></td><td></td>' +
+          '<td class="mono-cell cell-left" style="padding-left:28px;color:#f59e0b;font-style:italic">⌞ ' + lot + '(SP)</td>' +
+          '<td class="mono-cell">' + escapeHtml(r.sap_no || '-') + '</td>' +
+          '<td style="color:#f59e0b;font-style:italic">' + escapeHtml((r.product || '') + ' (SP)') + '</td>' +
+          '<td class="mono-cell" style="text-align:right">' + Number(r.sample_mt || 0).toFixed(4) + '</td>' +
+          '<td class="mono-cell" style="text-align:center">1</td>' +
+          '<td class="mono-cell" style="text-align:center;color:#22c55e">' + Number(r.sample_avail || 0) + '</td>' +
+          '<td class="mono-cell" style="text-align:center;color:#3b82f6">-</td>' +
+          '<td class="mono-cell" style="text-align:center;color:#f59e0b">-</td>' +
+          '<td class="mono-cell" style="text-align:center">' + Number(r.sample_bags || 0) + '</td>' +
+          '<td class="mono-cell" style="text-align:center">-</td>' +
+          '<td></td><td></td><td></td>' +
+          '<td>' + escapeHtml(r.customer || r.sold_to || '-') + '</td>' +
+          '<td class="mono-cell">' + escapeHtml(r.sale_ref || '-') + '</td>' +
+          '<td class="mono-cell">' + escapeHtml(r.outbound_date || r.ship_date || '-') + '</td>' +
+          '<td>' + escapeHtml(r.warehouse || r.wh || '-') + '</td>' +
+          '<td><span class="tag" style="background:#78350f;color:#fef3c7;font-weight:700">SAMPLE</span></td>' +
+          '</tr>'
+        ) : '');
     }).join('');
 
     /* Footer 합계 (v864-2 TreeviewTotalFooter 매칭) */
     tfoot.innerHTML =
-      '<tr style="background:var(--panel);font-weight:700">' +
+      '<tr style="background:#FFD600;font-weight:800;color:#222">' +
       '<td colspan="5" style="text-align:right">합계:</td>' +
       '<td class="mono-cell" style="text-align:right">' + totalMt.toFixed(4) + ' MT</td>' +
       '<td></td>' +
@@ -255,6 +253,22 @@
       },
     ]);
   };
+
+  window.showAllocMoreMenu = function(btn) {
+    if (!window._openContextMenu) return;
+    window._openContextMenu(btn, [
+      { icon:'📌', label:'승인분 반영', fn:function(){ window.allocApplyApproved && window.allocApplyApproved(); } },
+      { icon:'✅', label:'승인 대기', fn:function(){ window.allocShowApprovalQueue && window.allocShowApprovalQueue(); } },
+      '-',
+      { icon:'🧹', label:'LOT 초기화', color:'#f59e0b', fn:function(){ window.allocResetSelected && window.allocResetSelected(); } },
+      { icon:'⚠️', label:'전체 초기화', color:'#ef5350', fn:function(){ window.allocResetAll && window.allocResetAll(); } },
+      { icon:'🔖', label:'SALE REF 취소', fn:function(){ window.allocCancelBySaleRef && window.allocCancelBySaleRef(); } },
+      '-',
+      { icon:'📦', label:'LOT 현황', fn:function(){ window.allocOpenLotOverview && window.allocOpenLotOverview(); } },
+      { icon:'📊', label:'Excel 내보내기', fn:function(){ window.allocExportExcel && window.allocExportExcel(); } },
+    ]);
+  };
+
   window.allocUploadExcel = function() {
     if (typeof showAllocationUploadModal === 'function') { showAllocationUploadModal(); }
     else { showToast('error', 'Upload modal 미초기화'); }
@@ -324,7 +338,7 @@
 
   /* ── 전체 초기화 ── */
   window.allocResetAll = function() {
-    if (!sqmConfirm('⚠️ 전체 초기화\n\n모든 RESERVED/PICKED/OUTBOUND 배정을 취소하고 AVAILABLE로 원복합니다.\n(SOLD는 보호됩니다)\n\n계속하시겠습니까?')) return;
+    if (!sqmConfirm('⚠️ 전체 초기화\n\n모든 RESERVED/PICKED/SOLD 배정을 취소하고 AVAILABLE로 원복합니다.\n(SOLD는 보호됩니다)\n\n계속하시겠습니까?')) return;
     apiPost('/api/allocation/reset-all', {})
       .then(function(res){
         showToast('success', '⚠️ ' + (res.message || '전체 초기화 완료'));

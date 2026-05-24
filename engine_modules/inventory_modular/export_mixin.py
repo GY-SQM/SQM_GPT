@@ -936,7 +936,7 @@ class ExportMixin:
                 _font = sample_font if is_sample else data_font
                 desc = r.get('description', 'LITHIUM CARBONATE')
                 if is_sample:
-                    desc = f"{desc} (샘플)" if '샘플' not in desc else desc
+                    desc = desc if str(desc).upper().endswith(' SP') else f"{desc} SP"
 
                 nw_mt = float(r.get('sold_qty_mt') or 0)
                 gw_mt = float(r.get('gross_weight_kg') or 0) / 1000.0
@@ -1063,7 +1063,7 @@ class ExportMixin:
             is_sample = int(r.get('is_sample') or 0)
             desc = r.get('description', 'LITHIUM CARBONATE')
             if is_sample:
-                desc = f"{desc} (S)" if '샘플' not in desc else desc
+                desc = desc if str(desc).upper().endswith(' SP') else f"{desc} SP"
             nw = float(r.get('sold_qty_mt') or 0)
             gw = float(r.get('gross_weight_kg') or 0) / 1000.0
             table_data.append([
@@ -1341,7 +1341,7 @@ class ExportMixin:
             _font = sample_font if is_sample else data_font
             desc = r.get('description', 'LITHIUM CARBONATE')
             if is_sample:
-                desc = f"{desc} (샘플)" if '샘플' not in desc else desc
+                desc = desc if str(desc).upper().endswith(' SP') else f"{desc} SP"
 
             nw_mt = float(r.get('sold_qty_mt') or 0)
             gw_mt = float(r.get('gross_weight_kg') or 0) / 1000.0
@@ -1436,7 +1436,7 @@ class ExportMixin:
             is_sample = int(r.get('is_sample') or 0)
             desc = r.get('description', 'LITHIUM CARBONATE')
             if is_sample:
-                desc = f"{desc} (S)"
+                desc = desc if str(desc).upper().endswith(' SP') else f"{desc} SP"
             nw = float(r.get('sold_qty_mt') or 0)
             gw = float(r.get('gross_weight_kg') or 0) / 1000.0
             table_data.append([

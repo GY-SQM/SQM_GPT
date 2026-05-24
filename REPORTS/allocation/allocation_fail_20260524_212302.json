@@ -1,0 +1,370 @@
+{
+  "source_file": "song_allocation_lot_level_db_20260711_20260524_211949.xlsx",
+  "saved_at": "2026-05-24 21:23:02",
+  "error_count": 41,
+  "errors": [
+    "[QTY_EXCEEDS_AVAILABLE] 1126021635: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021636: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021637: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021646: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021647: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021651: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021652: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021653: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021654: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021655: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021668: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021714: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021716: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021717: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021718: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021719: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021720: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021721: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021722: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021723: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021724: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021725: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021726: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021727: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021730: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021741: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021742: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021751: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021752: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021753: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021754: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021755: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021757: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021758: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021762: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021763: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021764: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021765: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021766: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[QTY_EXCEEDS_AVAILABLE] 1126021767: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+    "[STRICT] Allocation 예약 중단: [QTY_EXCEEDS_AVAILABLE] 1126021635: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도) | [QTY_EXCEEDS_AVAILABLE] 1126021636: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도) | [QTY_EXCEEDS_AVAILABLE] 1126021637: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도) | [QTY_EXCEEDS_AVAILABLE] 1126021646: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도) | [QTY_EXCEEDS_AVAILABLE] 1126021647: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도) | [QTY_EXCEEDS_AVAILABLE] 1126021651: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도) | [QTY_EXCEEDS_AVAILABLE] 1126021652: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도) | [QTY_EXCEEDS_AVAILABLE] 1126021653: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도) | [QTY_EXCEEDS_AVAILABLE] 1126021654: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도) | [QTY_EXCEEDS_AVAILABLE] 1126021655: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)"
+  ],
+  "error_details": [
+    {
+      "line_no": 1,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021635: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021635",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 2,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021636: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021636",
+      "sold_to": "AAA BATTERY",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 3,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021637: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021637",
+      "sold_to": "CATL KOREA",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 4,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021646: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021646",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 5,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021647: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021647",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 6,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021651: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021651",
+      "sold_to": "AAA BATTERY",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 7,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021652: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021652",
+      "sold_to": "CATL KOREA",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 8,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021653: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021653",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 9,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021654: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021654",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 10,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021655: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021655",
+      "sold_to": "AAA BATTERY",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 11,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021668: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021668",
+      "sold_to": "CATL KOREA",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 12,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021714: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021714",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 13,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021716: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021716",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 14,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021717: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021717",
+      "sold_to": "AAA BATTERY",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 15,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021718: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021718",
+      "sold_to": "CATL KOREA",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 16,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021719: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021719",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 17,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021720: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021720",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 18,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021721: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021721",
+      "sold_to": "AAA BATTERY",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 19,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021722: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021722",
+      "sold_to": "CATL KOREA",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 20,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021723: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021723",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 21,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021724: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021724",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 22,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021725: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021725",
+      "sold_to": "AAA BATTERY",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 23,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021726: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021726",
+      "sold_to": "CATL KOREA",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 24,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021727: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021727",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 25,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021730: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021730",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 26,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021741: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021741",
+      "sold_to": "AAA BATTERY",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 27,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021742: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021742",
+      "sold_to": "CATL KOREA",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 28,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021751: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021751",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 29,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021752: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021752",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 30,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021753: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021753",
+      "sold_to": "AAA BATTERY",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 31,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021754: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021754",
+      "sold_to": "CATL KOREA",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 32,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021755: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021755",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 33,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021757: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021757",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 34,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021758: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021758",
+      "sold_to": "AAA BATTERY",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 35,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021762: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021762",
+      "sold_to": "CATL KOREA",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 36,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021763: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021763",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 37,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021764: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021764",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 38,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021765: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021765",
+      "sold_to": "AAA BATTERY",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 39,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021766: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021766",
+      "sold_to": "CATL KOREA",
+      "qty_mt": 5.001
+    },
+    {
+      "line_no": 40,
+      "fail_code": "QTY_EXCEEDS_AVAILABLE",
+      "reason": "[QTY_EXCEEDS_AVAILABLE] 1126021767: 요청 11개 > 가용 10개 — oversell 방지 HARD-STOP (Allocation 수정 또는 추가 입고 후 재시도)",
+      "lot_no": "1126021767",
+      "sold_to": "LG ENERGY SOLUTION",
+      "qty_mt": 5.001
+    }
+  ]
+}

@@ -2,22 +2,36 @@
 
 **작업 폴더:** `D:\program\SQM_inventory\sqm_v869_clean`
 **GitHub:** `https://github.com/kidongnam1/sqm_3` (main)
-**최종 갱신:** 2026-05-20
+**최종 갱신:** 2026-05-24
 
 ---
 
 ## STACK
 PyWebView 5 · FastAPI 0.104 · Vanilla JS · SQLite WAL · Python 3.11
 
+## ⛔ ABSOLUTE EDIT BAN (LLM/Claude 절대 금지 파일)
+다음 파일은 IIFE/대형 폐쇄 구조라 Edit 툴 사용 시 사고 가능 → 무조건 `scripts/patch_*.py`:
+- `frontend/js/sqm-inline.js`  (7,516줄, IIFE)
+- `frontend/js/sqm-core.js`    (2,000줄+, IIFE)
+- `})();` 로 끝나는 모든 JS 파일
+
 ## CORE RULES
-- **Rule 5 (강화 2026-05-15)** — Edit 툴 금지 조건:
-  - ① 1000줄 이상 파일 (예: sqm-inline.js 7516줄, sqm-core.js 2000+줄)
-  - ② IIFE 패턴 `(function(){...})();` 또는 `})();` 로 끝나는 파일
-  - ③ 위 조건 해당 시 무조건 `scripts/patch_*.py` 스크립트로 처리
-  - 📌 사고 사례 (2026-05-15): Edit 툴이 sqm-inline.js 끝 10줄(IIFE 닫힘)을 날림 → 복구 + Python 스크립트 재패치
+- **Rule 5 (개정 2026-05-24)** — Edit 툴 사용 규칙:
+  - ① **위 ABSOLUTE EDIT BAN 목록은 절대 Edit 금지** (사고 사례: 2026-05-15 sqm-inline.js IIFE 닫힘 10줄 손상)
+  - ② 그 외 파일(Python 라인 수 무관, ES Module JS 등)은 Edit 허용
+  - ③ Edit 전 **반드시 수정 대상 ±20줄 Read** (맥락 누락 방지)
+  - ④ Edit 후 **즉시 syntax check**:
+      - Python: `python -m py_compile <file>`
+      - JS:     `node --check <file>`
+  - ⑤ Edit 후 **즉시 `git diff <file>` 확인** (의도치 않은 변경 감지)
+  - ⑥ 1000줄 이상 파일 Edit 시 **사전 `.bak` 백업 권장**:
+      ```bash
+      cp <file> <file>.bak.$(date +%Y%m%d-%H%M%S)
+      ```
+  - 📌 patch 스크립트는 (a) ABSOLUTE EDIT BAN 파일 또는 (b) 동일 패턴 다회 적용 시에만 작성 (1회용 patch 양산 금지)
 - **Rule 6** — git commit/push은 Windows CMD에서만 (VM 금지)
-- **방지책 ②** — 코드 + 주석 먼저 읽고 수정 (추측 금지)
-- **방지책 ④** — 세션 시작 시 py_compile + node --check 전수검사
+- **방지책 ②** — 코드 + 주석 먼저 읽고 수정 (추측 금지) — Rule 5 ③과 통합
+- **방지책 ④** — 세션 시작 시 py_compile + node --check 전수검사 — Rule 5 ④와 통합
   - 최근 통과 기록: 2026-05-17 Python 34/34, JS 22/22 ✅
 - 색상/폰트 → `design-tokens.css` 변수만 (하드코딩 금지)
 

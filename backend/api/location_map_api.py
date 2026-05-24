@@ -541,3 +541,46 @@ def latest_map(batch_id: int = Query(None, description='지정 시 해당 batch,
     except Exception as e:  # noqa: BLE001
         logger.exception('[location-map/latest] error: %s', e)
         return err_response(str(e))
+
+
+# ─────────────────────────────────────────────────────────────────────
+# DELETE /api/location-map/batch/{batch_id}  (v8.6.9 롤백 A)
+# ─────────────────────────────────────────────────────────────────────
+@router.delete('/batch/{batch_id}', summary='🗑️ 위치 매핑 batch 삭제 (롤백)')
+def delete_batch(batch_id: int):
+    """잘못 임포트한 batch 삭제. lot_location_map + lot_location_import_batch에서 제거."""
+    try:
+        con = _db()
+        try:
+            _ensure_tables(con)
+            row = con.execute(
+                'SELECT id FROM lot_location_import_batch WHERE id=?',
+                (batch_id,),
+            ).fetchone()
+            if not row:
+                return err_response(f'batch #{batch_id} 를 찾을 수 없습니다', code='NOT_FOUND')
+            lot_rows = con.execute(
+                'SELECT DISTINCT lot_no FROM lot_location_map WHERE batch_id=?',
+                (batch_id,),
+            ).fetchall()
+            lot_nos = [r['lot_no'] for r in lot_rows]
+            con.execute('DELETE FROM lot_location_map WHERE batch_id=?', (batch_id,))
+            con.execute('DELETE FROM lot_location_import_batch WHERE id=?', (batch_id,))
+            con.commit()
+            new_latest = con.execute(
+                'SELECT id FROM lot_location_import_batch ORDER BY id DESC LIMIT 1'
+            ).fetchone()
+            new_batch_id = new_latest['id'] if new_latest else None
+        finally:
+            con.close()
+        logger.info('[location-map/delete-batch] batch_id=%s lot_count=%s', batch_id, len(lot_nos))
+        return ok_response({
+            'deleted_batch_id': batch_id,
+            'lot_nos': lot_nos,
+            'lot_count': len(lot_nos),
+            'new_latest_batch_id': new_batch_id,
+            'message': f'배치 #{batch_id} 삭제 완료 ({len(lot_nos)}개 LOT 위치 후보 제거)',
+        })
+    except Exception as e:
+        logger.exception('[location-map/delete-batch] error: %s', e)
+        return err_response(str(e))

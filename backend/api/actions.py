@@ -698,12 +698,28 @@ def lot_list_json():
         con = _db()
         rows = con.execute(_LOT_LIST_EXCEL_SQL).fetchall()
         rows = _append_lot_candidate_summary(rows, con)
+        # v8.6.9: 톤백 regular/sample 분리 집계
+        try:
+            tb_summary = con.execute("""
+                SELECT lot_no,
+                       SUM(CASE WHEN COALESCE(is_sample,0)=0 THEN 1 ELSE 0 END),
+                       SUM(CASE WHEN COALESCE(is_sample,0)=1 THEN 1 ELSE 0 END)
+                  FROM inventory_tonbag
+                 GROUP BY lot_no
+            """).fetchall()
+            tb_map = {r[0]: (int(r[1] or 0), int(r[2] or 0)) for r in tb_summary}
+        except Exception:
+            tb_map = {}
         con.close()
         data = []
         for r in rows:
-            data.append({k: r[i] for i, k in enumerate(_LOT_LIST_JSON_HEADERS)})
+            d = {k: r[i] for i, k in enumerate(_LOT_LIST_JSON_HEADERS)}
+            reg, smp = tb_map.get(d.get('lot_no', ''), (0, 0))
+            d['regular_bags'] = reg
+            d['sample_bags']  = smp
+            data.append(d)
         return ok_response({"rows": data, "count": len(data),
-                            "headers": _LOT_LIST_JSON_HEADERS})
+                            "headers": _LOT_LIST_JSON_HEADERS + ["regular_bags", "sample_bags"]})
     except Exception as e:
         logger.error("lot-list-json error: %s", e)
         return err_response(str(e))

@@ -368,7 +368,7 @@ class ScanTabMixin:
         stat  = tb.get('status', '-')
         wt    = tb.get('weight', 0)
         loc   = tb.get('location') or '-'
-        samp  = '(샘플)' if tb.get('is_sample') or tb.get('sub_lt') == 0 else ''
+        samp  = 'SP' if tb.get('is_sample') or tb.get('sub_lt') == 0 else ''
         self._scan_result_var.set(
             f"✅ LOT: {lot}  상태: {stat}  무게: {wt}kg  위치: {loc}  {samp}"
         )

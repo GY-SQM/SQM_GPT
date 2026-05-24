@@ -33,28 +33,68 @@ logger = logging.getLogger(__name__)
 SAMPLE_MT_THRESHOLD = 0.01  # 10 kg 이하는 샘플 행
 
 
-def _allocation_tonbag_sample_counts(rows: list) -> tuple:
-    """Allocation 행에서 500kg 기준 톤백 표시 개수와 샘플(1kg) 개수 계산. (tonbag_500, sample_count)
+def _allocation_tonbag_sample_counts(rows: list, db=None) -> tuple:
+    """Allocation 행에서 톤백 표시 개수와 샘플(1kg) 개수 계산.
 
-    v8.6.1 설계 원칙:
-    - 이 함수는 UI 표시 전용 (미리보기 카운트)이며 실제 DB 저장값과 무관.
-    - lot_no가 없어 get_tonbag_unit_weight() DB 조회 불가 → 500kg 표시 기준 유지.
-    - 실제 톤백 무게는 입고 시 (net_weight - 1kg) / mxbg_pallet 공식으로 결정.
+    Returns:
+        (tonbag_500, tonbag_1000, sample_count)
+
+    v8.6.5: db가 주어지면 LOT별 실제 톤백 단가를 조회하여 500/1000kg 분리 집계.
+            db가 None이거나 LOT 단가 조회 실패 시 DEFAULT_TONBAG_WEIGHT(500)로 fallback.
+            실제 톤백 무게는 입고 시 (net_weight - 1kg) / mxbg_pallet 공식으로 결정.
     """
+    try:
+        from engine_modules.constants import get_tonbag_unit_weight
+    except Exception:
+        get_tonbag_unit_weight = None
+
     tonbag_500 = 0
+    tonbag_1000 = 0
     sample_count = 0
+    unit_cache: dict = {}  # {lot_no: unit_weight_kg}
+
     for r in rows:
-        qty = 0.0
         if hasattr(r, 'get'):
             qty = float(r.get('qty_mt') or 0)
+            lot_no = str(r.get('lot_no') or '').strip()
         else:
             qty = float(getattr(r, 'qty_mt', 0) or 0)
-        if qty >= SAMPLE_MT_THRESHOLD:
-            # 표시 전용: 500kg 기준 개수. 실제 톤백 단가는 DB inventory_tonbag.weight 참조.
-            tonbag_500 += int(round(qty * 1000 / DEFAULT_TONBAG_WEIGHT))
-        else:
+            lot_no = str(getattr(r, 'lot_no', '') or '').strip()
+
+        if qty < SAMPLE_MT_THRESHOLD:
             sample_count += 1
-    return tonbag_500, sample_count
+            continue
+
+        unit_w = float(DEFAULT_TONBAG_WEIGHT)
+        if db is not None and lot_no and get_tonbag_unit_weight is not None:
+            if lot_no not in unit_cache:
+                try:
+                    unit_cache[lot_no] = float(get_tonbag_unit_weight(db, lot_no) or DEFAULT_TONBAG_WEIGHT)
+                except Exception:
+                    unit_cache[lot_no] = float(DEFAULT_TONBAG_WEIGHT)
+            unit_w = unit_cache[lot_no] or float(DEFAULT_TONBAG_WEIGHT)
+
+        if unit_w <= 0:
+            unit_w = float(DEFAULT_TONBAG_WEIGHT)
+        count = int(round(qty * 1000.0 / unit_w))
+        if abs(unit_w - 1000.0) < 0.5:
+            tonbag_1000 += count
+        else:
+            tonbag_500 += count
+
+    return tonbag_500, tonbag_1000, sample_count
+
+
+def _format_tonbag_summary(tb500: int, tb1000: int) -> str:
+    """톤백 카운트를 표시 문자열로 포맷.
+
+    1000kg가 0이면 "500kg N개" 만, 둘 다 있으면 "500kg N개, 1000kg M개" 로 표시.
+    """
+    if tb1000 > 0 and tb500 > 0:
+        return f"500kg {tb500}개, 1000kg {tb1000}개"
+    if tb1000 > 0:
+        return f"1000kg {tb1000}개"
+    return f"500kg {tb500}개"
 
 
 ALLOC_PREVIEW_COLUMNS = [
@@ -126,9 +166,9 @@ class AllocationDialog:
         self._file_var.set("(붙여넣기 데이터)")
         self._fill_tree_from_parsed_rows()
         total_mt = sum(float(r.get('qty_mt') or 0) for r in rows)
-        tb500, samp = _allocation_tonbag_sample_counts(rows)
+        tb500, tb1000, samp = _allocation_tonbag_sample_counts(rows, db=getattr(self.engine, 'db', None))
         self._summary_var.set(
-            f"고객: (붙여넣기) | 총 {len(rows)}행 | 총량: {total_mt:.4f} MT | 500kg {tb500}개, 샘플 {samp}개"
+            f"고객: (붙여넣기) | 총 {len(rows)}행 | 총량: {total_mt:.4f} MT | {_format_tonbag_summary(tb500, tb1000)}, 샘플 {samp}개"
         )
         if self.parsed_rows:
             self.btn_reserve.config(state='normal')
@@ -485,10 +525,10 @@ class AllocationDialog:
         elif total is None:
             total = 0.0
         fname = path.split('/')[-1].split(chr(92))[-1]
-        tb500, samp = _allocation_tonbag_sample_counts(self.parsed_rows)
+        tb500, tb1000, samp = _allocation_tonbag_sample_counts(self.parsed_rows, db=getattr(self.engine, 'db', None))
         self._summary_var.set(
             f"고객: {customer} | 총 {len(self.parsed_rows)}행 | 총량: {total:.4f} MT | "
-            f"500kg {tb500}개, 샘플 {samp}개 | 파싱: {elapsed_sec:.2f}초 | {fname}"
+            f"{_format_tonbag_summary(tb500, tb1000)}, 샘플 {samp}개 | 파싱: {elapsed_sec:.2f}초 | {fname}"
         )
 
         if self.parsed_rows:
@@ -570,15 +610,16 @@ class AllocationDialog:
         # ── v8.1.5 [ONE-STOP]: PRE-DUP + HISTORY 정보는 _show_upload_summary_dialog에 통합 ──
         # (개별 팝업 제거 — 이미 업로드 현황 팝업에서 한 번에 안내함)
 
-        tb500, samp = _allocation_tonbag_sample_counts(self.parsed_rows)
+        tb500, tb1000, samp = _allocation_tonbag_sample_counts(self.parsed_rows, db=getattr(self.engine, 'db', None))
+        _tb_summary = _format_tonbag_summary(tb500, tb1000)
         if self._lot_mode_var.get():
             confirm_msg = (
-                f"LOT 단위로 500kg 제품 {tb500}개 및 샘플(1kg) {samp}개를 예약 계획으로 저장합니다.\n"
+                f"LOT 단위로 {_tb_summary} 제품 및 샘플(1kg) {samp}개를 예약 계획으로 저장합니다.\n"
                 "톤백 ID는 지금 지정하지 않으며, 바코드 스캔 시점에 확정됩니다.\n계속하시겠습니까?"
             )
         else:
             confirm_msg = (
-                f"500kg 제품 {tb500}개 및 샘플(1kg) {samp}개 판매 배정합니다.\n계속하시겠습니까?"
+                f"{_tb_summary} 제품 및 샘플(1kg) {samp}개 판매 배정합니다.\n계속하시겠습니까?"
             )
         ok = CustomMessageBox.askyesno(self.dialog, "예약 실행", confirm_msg)
         if not ok:
@@ -813,38 +854,40 @@ class AllocationDialog:
         _btn_no = _tc('btn_neutral',   '#2a3a5c', '#6c7a89')
 
         # ── 이번 업로드 수치 ─────────────────────────────────────────────────
-        new_tb, new_samp = _allocation_tonbag_sample_counts(self.parsed_rows)
+        _db_ref = getattr(self.engine, 'db', None)
+        new_tb500, new_tb1000, new_samp = _allocation_tonbag_sample_counts(self.parsed_rows, db=_db_ref)
+        new_tb = new_tb500 + new_tb1000
         new_total = len(self.parsed_rows)
 
         # ── 기존 예약 현황 (DB 조회) ─────────────────────────────────────────
-        prev_tb, prev_samp, prev_total = 0, 0, 0
-        if hasattr(self.engine, 'db') and self.engine.db:
+        prev_tb500, prev_tb1000, prev_samp, prev_total = 0, 0, 0, 0
+        if _db_ref:
             try:
                 fp    = dup.get('fingerprint', '')
                 fname = dup.get('file_name', '')
                 if fp:
-                    rows_db = self.engine.db.fetchall(
-                        "SELECT qty_mt FROM allocation_plan "
+                    rows_db = _db_ref.fetchall(
+                        "SELECT qty_mt, lot_no FROM allocation_plan "
                         "WHERE status = 'RESERVED' AND source_fingerprint = ?",
                         (fp,)
                     )
                 elif fname and fname not in ('(붙여넣기)', '(붙여넣기 데이터)'):
-                    rows_db = self.engine.db.fetchall(
-                        "SELECT qty_mt FROM allocation_plan "
+                    rows_db = _db_ref.fetchall(
+                        "SELECT qty_mt, lot_no FROM allocation_plan "
                         "WHERE status = 'RESERVED' AND source_file LIKE ?",
                         (f"%{fname}",)
                     )
                 else:
                     rows_db = []
-                for r in (rows_db or []):
-                    q = float(r.get('qty_mt', 0) or 0) if isinstance(r, dict) else float(r[0] or 0)
-                    if q >= SAMPLE_MT_THRESHOLD:
-                        prev_tb += int(round(q * 1000 / 500))
-                    else:
-                        prev_samp += 1
+                # LOT 기반 unit_weight 캐시 + 분리 집계 — 함수 재사용
+                prev_tb500, prev_tb1000, prev_samp = _allocation_tonbag_sample_counts(
+                    [dict(r) if not isinstance(r, dict) else r for r in (rows_db or [])],
+                    db=_db_ref,
+                )
                 prev_total = len(rows_db or [])
             except Exception as e:
                 logger.debug(f"[SUMMARY] DB 기존 예약 조회 실패: {e}")
+        prev_tb = prev_tb500 + prev_tb1000
 
         # ── pre_dup (이미 RESERVED LOT) ──────────────────────────────────────
         pre_dup = self._check_pre_dup_lots()
@@ -858,9 +901,19 @@ class AllocationDialog:
         history_count = len(history_only)
 
         # ── 합계 ─────────────────────────────────────────────────────────────
-        total_tb   = prev_tb   + new_tb
-        total_samp = prev_samp + new_samp
-        total_rows = prev_total + new_total
+        total_tb500  = prev_tb500  + new_tb500
+        total_tb1000 = prev_tb1000 + new_tb1000
+        total_tb     = prev_tb     + new_tb
+        total_samp   = prev_samp + new_samp
+        total_rows   = prev_total + new_total
+
+        # 셀 표시: 1000kg 톤백이 있으면 "N+M" 분리 표시, 없으면 기존처럼 N개
+        def _tb_cell(tb500: int, tb1000: int) -> str:
+            if tb1000 > 0 and tb500 > 0:
+                return f"{tb500}+{tb1000}"
+            if tb1000 > 0:
+                return f"{tb1000}(1t)"
+            return str(tb500)
 
         # ── 팝업 창 ──────────────────────────────────────────────────────────
         popup = tk.Toplevel(self.dialog)
@@ -887,8 +940,8 @@ class AllocationDialog:
         tbl = tk.Frame(popup, bg=_bg, padx=16, pady=2)
         tbl.pack(fill='x')
 
-        HEADERS   = ["구분",          "행 수", "톤백(500kg)", "샘플(1kg)"]
-        COL_CHARS = [14,               7,       12,            9         ]
+        HEADERS   = ["구분",          "행 수", "톤백(500/1000kg)", "샘플(1kg)"]
+        COL_CHARS = [14,               7,       16,                 9         ]
 
         def _cell(parent, text, row, col, *, bg, fg, bold=False):
             tk.Label(
@@ -903,9 +956,9 @@ class AllocationDialog:
             _cell(tbl, h, 0, c, bg=_accent, fg='#ffffff', bold=True)
 
         table_rows = [
-            ("기존 예약",   prev_total, prev_tb, prev_samp),
-            ("이번 업로드", new_total,  new_tb,  new_samp),
-            ("합  계",      total_rows, total_tb, total_samp),
+            ("기존 예약",   prev_total, _tb_cell(prev_tb500, prev_tb1000),  prev_samp),
+            ("이번 업로드", new_total,  _tb_cell(new_tb500,  new_tb1000),   new_samp),
+            ("합  계",      total_rows, _tb_cell(total_tb500, total_tb1000), total_samp),
         ]
         for r_i, (label, cnt, tb, samp) in enumerate(table_rows):
             is_total = r_i == 2

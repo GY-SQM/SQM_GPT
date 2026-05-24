@@ -60,6 +60,9 @@
       +     'display:none;align-items:center;gap:4px;" id="lmi-force-wrap">'
       + '    <input type="checkbox" id="lmi-force"> 입고 누락 무시하고 강제 저장'
       + '  </label>'
+      + '  <button id="lmi-rollback" class="btn" '
+      +     'style="background:#c0392b;color:#fff;" '
+      +     'title="최신 import batch 삭제 + (선택) 톤백 위치 초기화">🗑️ 최신 배치 롤백</button>'
       + '  <button id="lmi-commit" class="btn" disabled '
       +     'style="background:#27ae60;color:#fff;">💾 위치 후보 저장</button>'
       + '</div>'
@@ -83,6 +86,7 @@
       if (f) _doPreview(f);
     };
     document.getElementById('lmi-commit').onclick = _doCommit;
+    document.getElementById('lmi-rollback').onclick = _doRollback;
 
     if (typeof window._makeDraggableResizable === 'function') {
       window._makeDraggableResizable(d, document.getElementById('lmi-hdr'));
@@ -324,6 +328,81 @@
             + '</ul></div>'
             + '<pre style="white-space:pre-wrap;font-size:11px;margin-top:10px;">' + _esc(e.message) + '</pre>');
       });
+  }
+
+  /* ── 롤백: 최신 batch 삭제 + (선택) 톤백 위치 초기화 ── */
+  function _doRollback() {
+    if (_state.busy) return;
+    // ① 최신 batch 정보 조회
+    fetch(_api() + '/api/location-map/latest')
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res || !res.ok) {
+          _toast('error', '배치 정보 조회 실패: ' + (res && res.error || '알 수 없음'));
+          return;
+        }
+        var d = res.data || {};
+        var batchId = d.batch_id;
+        if (!batchId) {
+          _toast('warning', '삭제할 import 배치가 없습니다');
+          return;
+        }
+        var lotCount = d.count || 0;
+        var msg = '⚠️ 최신 배치 #' + batchId + ' 를 삭제합니다.\n'
+          + 'LOT ' + lotCount + '개의 위치 후보(매핑 데이터)가 제거됩니다.\n\n'
+          + '계속할까요?';
+        if (!window.sqmConfirm(msg)) return;
+        // ② batch 삭제 API 호출
+        _state.busy = true;
+        fetch(_api() + '/api/location-map/batch/' + batchId, { method: 'DELETE' })
+          .then(function (r) { return r.json(); })
+          .then(function (res2) {
+            _state.busy = false;
+            if (!res2 || !res2.ok) {
+              _toast('error', '배치 삭제 실패: ' + (res2 && res2.error || '알 수 없음'));
+              return;
+            }
+            var d2 = res2.data || {};
+            var lotNos = d2.lot_nos || [];
+            _toast('success', d2.message || '배치 삭제 완료');
+            // ③ 위치 초기화(B) 여부 추가 확인
+            if (lotNos.length > 0) {
+              var msg2 = '배치가 삭제되었습니다.\n\n'
+                + '추가로 해당 LOT ' + lotNos.length + '개의\n'
+                + '톤백 실제 위치(inventory_tonbag.location)도\n'
+                + '초기화(NULL)할까요?\n\n'
+                + '※ 위치 후보만 지우고 실제 위치는 유지하려면 [취소]';
+              if (window.sqmConfirm(msg2)) {
+                fetch(_api() + '/api/inventory/clear-lot-locations', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ lot_nos: lotNos }),
+                })
+                  .then(function (r) { return r.json(); })
+                  .then(function (res3) {
+                    if (res3 && res3.ok) {
+                      _toast('success', '위치 초기화 완료 — 톤백 ' + (res3.tonbag_cleared || 0) + '개');
+                    } else {
+                      _toast('error', '위치 초기화 실패: ' + (res3 && res3.error || '알 수 없음'));
+                    }
+                  })
+                  .catch(function (e) { _toast('error', '위치 초기화 요청 실패: ' + e.message); });
+              }
+            }
+            // 모달 body 초기화
+            document.getElementById('lmi-body').innerHTML =
+              '<div style="text-align:center;padding:40px;color:#a5d6a7;">'
+              + '✅ 배치 #' + batchId + ' 삭제 완료 — 새 엑셀을 다시 업로드하세요.</div>';
+            document.getElementById('lmi-commit').disabled = true;
+            document.getElementById('lmi-force-wrap').style.display = 'none';
+            _state.report = null;
+          })
+          .catch(function (e) {
+            _state.busy = false;
+            _toast('error', '배치 삭제 요청 실패: ' + e.message);
+          });
+      })
+      .catch(function (e) { _toast('error', '배치 정보 조회 실패: ' + e.message); });
   }
 
   /* 공개 함수 */

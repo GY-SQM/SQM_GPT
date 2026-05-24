@@ -7,6 +7,7 @@ POST /api/scan/process       바코드 스캔 처리
 GET  /api/health             시스템 헬스체크
 """
 import sqlite3, os, sys, logging
+from datetime import datetime
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, Query as QP, HTTPException, Body
 from fastapi.responses import JSONResponse
@@ -475,6 +476,57 @@ def assign_locations_bulk(payload: dict = Body(...)):
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# POST /api/inventory/clear-lot-locations   (v8.6.9)
+# 잘못 배정된 톤백 위치 일괄 초기화 (location → NULL)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+@inv_router.post("/clear-lot-locations", summary="🧹 LOT 톤백 위치 초기화")
+def clear_lot_locations(payload: dict = Body(...)):
+    """
+    지정 LOT 들의 inventory_tonbag.location 을 NULL 로 초기화.
+    payload: { lot_nos: ["LOT-001", "LOT-002", ...] }
+    잘못 임포트된 위치재고 엑셀을 batch 삭제 후 위치도 되돌릴 때 사용.
+    """
+    lot_nos = payload.get("lot_nos") or []
+    if not lot_nos:
+        raise HTTPException(400, "lot_nos 가 비어 있습니다")
+    if not isinstance(lot_nos, list):
+        raise HTTPException(400, "lot_nos 는 배열이어야 합니다")
+
+    try:
+        con = _db()
+        try:
+            ts = datetime.now().isoformat(timespec="seconds")
+            cleared_total = 0
+            results = []
+            for lot_no in lot_nos:
+                lot_no = str(lot_no).strip()
+                if not lot_no:
+                    continue
+                cur = con.execute(
+                    "UPDATE inventory_tonbag SET location=NULL, updated_at=? WHERE lot_no=? AND location IS NOT NULL",
+                    (ts, lot_no),
+                )
+                cleared_total += cur.rowcount
+                results.append({"lot_no": lot_no, "cleared": cur.rowcount})
+            con.commit()
+        finally:
+            con.close()
+        log.info(f"[clear-lot-locations] lots={len(lot_nos)} tonbags_cleared={cleared_total}")
+        return {
+            "ok": True,
+            "lot_count": len(lot_nos),
+            "tonbag_cleared": cleared_total,
+            "results": results,
+            "message": f"{len(lot_nos)}개 LOT, 톤백 {cleared_total}개 위치 초기화 완료",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error(f"clear-lot-locations error: {e}")
+        raise HTTPException(500, str(e))
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # GET /api/allocation  — Allocation 탭 메인 데이터
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @alloc_router.get("")
@@ -914,7 +966,6 @@ def health_check():
             "status": "ok",
             "lots": lots,
             "tonbags": tbags,
-            "engine_count": lots
         }
     except Exception as e:
         return {"status": "error", "message": str(e), "engine_count": 0}

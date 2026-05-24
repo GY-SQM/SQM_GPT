@@ -94,6 +94,39 @@ function renderProducts(rows) {
       <td>${total.sample}</td>
     </tr>
   `;
+  /* v8.6.9: 노란 배지 footer */
   var _dpfoot = document.getElementById('dash-products-footer');
   if (_dpfoot) {
-    var _dps = 'display:inline-block;padding:2px 14px;m
+    var _dps = 'display:inline-block;padding:4px 18px;margin-right:10px;background:#FFD600;border-radius:8px;font-size:14px;color:#222;font-weight:800;box-shadow:0 1px 4px rgba(0,0,0,.25);';
+    _dpfoot.innerHTML =
+        '<span style="' + _dps + '">📦 ' + rows.length + ' Product</span>'
+      + '<span style="' + _dps + '">⚖ 합계 ' + num(total.total) + ' MT</span>'
+      + (total.sample > 0 ? '<span style="' + _dps + '">🧪 샘플 ' + total.sample + '</span>' : '');
+  }
+}
+
+function renderLots(rows) {
+  const tbody = document.getElementById('dash-lots');
+  if (!tbody) return;
+  tbody.innerHTML = rows.map((r, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>${num(r.opening)}</td>
+      <td>${num(r.inbound)}</td>
+      <td>${num(r.outbound)}</td>
+      <td>${num(r.ending)}</td>
+      <td><span class="badge-ok" style="color:#2e7d32;font-weight:700">${r.status || 'OK'}</span></td>
+    </tr>
+  `).join('');
+  /* v8.6.9: 노란 배지 footer */
+  var _dlfoot = document.getElementById('dash-lots-footer');
+  if (_dlfoot) {
+    var _dls = 'display:inline-block;padding:4px 18px;margin-right:10px;background:#FFD600;border-radius:8px;font-size:14px;color:#222;font-weight:800;box-shadow:0 1px 4px rgba(0,0,0,.25);';
+    var totEnd = rows.reduce(function(a, r) { return a + Number(r.ending || 0); }, 0);
+    _dlfoot.innerHTML =
+        '<span style="' + _dls + '">📋 LOT ' + rows.length + ' 건</span>'
+      + (totEnd > 0 ? '<span style="' + _dls + '">기말재고 ' + num(totEnd) + ' MT</span>' : '');
+  }
+}
+
+export function unmount() {}

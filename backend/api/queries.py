@@ -456,11 +456,30 @@ def get_picked_list(limit: int = 500):
 
 # ── Sold List: 출고 완료 목록 ───────────────────────────────────
 @router.get("/sold-list", summary="📋 출고 완료 목록 (sold_table)")
-def get_sold_list(limit: int = 500):
-    """sold_table — SOLD/OUTBOUND/CONFIRMED 상태를 lot_no+sales_order_no 기준 GROUP BY 집계"""
+def get_sold_list(limit: int = 500, start_date: str = "", end_date: str = ""):
+    """sold_table — SOLD/CONFIRMED 상태를 lot_no+sales_order_no 기준 GROUP BY 집계
+    start_date/end_date: YYYY-MM-DD 형식. 같은 날이면 당일만 조회."""
     try:
         con = _db()
-        rows = con.execute("""
+        where = "s.status IN ('SOLD', 'CONFIRMED')"
+        params: list = []
+        sd = start_date.strip()
+        ed = end_date.strip()
+        if sd and ed:
+            if sd == ed:
+                where += " AND date(s.sold_date) = ?"
+                params.append(sd)
+            else:
+                where += " AND date(s.sold_date) BETWEEN ? AND ?"
+                params.extend([sd, ed])
+        elif sd:
+            where += " AND date(s.sold_date) >= ?"
+            params.append(sd)
+        elif ed:
+            where += " AND date(s.sold_date) <= ?"
+            params.append(ed)
+        params.append(limit)
+        rows = con.execute(f"""
             SELECT
                 s.lot_no,
                 s.customer,
@@ -469,11 +488,11 @@ def get_sold_list(limit: int = 500):
                 SUM(COALESCE(s.sold_qty_kg, 0))      AS total_kg,
                 MAX(s.sold_date)                     AS sold_date
             FROM sold_table s
-            WHERE s.status IN ('SOLD', 'CONFIRMED')
+            WHERE {where}
             GROUP BY s.lot_no, s.sales_order_no
             ORDER BY s.sold_date DESC, s.lot_no
             LIMIT ?
-        """, (limit,)).fetchall()
+        """, params).fetchall()
         con.close()
         return ok_response(data={
             "items": _rows_to_list(rows),
@@ -574,7 +593,13 @@ def get_allocation_summary():
                    ROUND((SELECT COALESCE(SUM(t.weight), 0) FROM inventory_tonbag t
                     WHERE t.lot_no = ap.lot_no AND t.status = 'RESERVED' AND COALESCE(t.is_sample, 0) = 0) / 1000.0, 3) AS reserved_mt,
                    ROUND((SELECT COALESCE(SUM(t.weight), 0) FROM inventory_tonbag t
-                    WHERE t.lot_no = ap.lot_no AND t.status = 'PICKED' AND COALESCE(t.is_sample, 0) = 0) / 1000.0, 3) AS picked_mt
+                    WHERE t.lot_no = ap.lot_no AND t.status = 'PICKED' AND COALESCE(t.is_sample, 0) = 0) / 1000.0, 3) AS picked_mt,
+                   (SELECT COUNT(*) FROM inventory_tonbag t
+                    WHERE t.lot_no = ap.lot_no AND COALESCE(t.is_sample, 0) = 1) AS sample_bags,
+                   (SELECT COUNT(*) FROM inventory_tonbag t
+                    WHERE t.lot_no = ap.lot_no AND COALESCE(t.is_sample, 0) = 1 AND t.status = 'AVAILABLE') AS sample_avail,
+                   ROUND((SELECT COALESCE(SUM(t.weight), 0) FROM inventory_tonbag t
+                    WHERE t.lot_no = ap.lot_no AND COALESCE(t.is_sample, 0) = 1) / 1000.0, 4) AS sample_mt
             FROM allocation_plan ap
             LEFT JOIN inventory i ON ap.lot_no = i.lot_no
             WHERE ap.status NOT IN ('CANCELLED')
@@ -587,7 +612,8 @@ def get_allocation_summary():
             "items": _rows_to_list(rows),
             "total": len(rows),
             "columns": ["lot_no", "customer", "total_mt", "tonbag_count", "plan_date", "sale_ref", "outbound_date", "status", "sap_no", "product", "warehouse",
-                        "mxbg_pallet", "total_bags", "tb_available", "tb_reserved", "tb_picked", "avail_mt", "reserved_mt", "picked_mt"]
+                        "mxbg_pallet", "total_bags", "tb_available", "tb_reserved", "tb_picked", "avail_mt", "reserved_mt", "picked_mt",
+                        "sample_bags", "sample_avail", "sample_mt"]
         })
     except Exception as e:
         logger.error("allocation-summary error: %s", e)

@@ -773,9 +773,9 @@ class TonbagTabMixin:
                 if is_sample and show_sample and not show_sample.get():
                     continue
                 
-                # v4.0.8/v5.7.5: 샘플 톤백은 제품명 뒤 (S) 표기 — 짧게 표시
+                # v4.0.8/v5.7.5: sample tonbag product suffix.
                 if is_sample:
-                    product = f"{product} (S)" if product else "(S)"
+                    product = f"{product} SP" if product else "SP"
                 
                 # 검색 필터
                 if search_text:

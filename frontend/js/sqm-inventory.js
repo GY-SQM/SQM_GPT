@@ -117,7 +117,7 @@
             '<td class="mono-cell" style="color:#94a3b8;font-size:15px;padding:6px 10px;line-height:1.2">'+escapeHtml(r.sap||'')+'</td>' +
             '<td class="mono-cell" style="color:#94a3b8;font-size:15px;padding:6px 10px;line-height:1.2">'+escapeHtml(r.bl||'')+'</td>' +
             '<td><span class="tag" style="background:rgba(234,179,8,0.2);color:#eab308">'+escapeHtml(r.product||'')+'</span></td>' +
-            '<td style="font-size:15px;color:#eab308;font-weight:600;padding:6px 10px;line-height:1.2">SAMPLE</td>' +
+            '<td style="font-size:15px;color:#eab308;font-weight:600;padding:6px 10px;line-height:1.2">SP</td>' +
             '<td class="mono-cell" style="text-align:right;color:#eab308;font-weight:600;padding:6px 10px;line-height:1.2">'+fmtN(r.sample_weight_mt||0)+'</td>' +
             '<td class="mono-cell" style="text-align:right;color:#eab308;padding:6px 10px;line-height:1.2">'+fmtN(r.sample_weight_mt||0)+'</td>' +
             '<td class="mono-cell" style="font-size:15px;color:#94a3b8;padding:6px 10px;line-height:1.2">'+parentContainer+'</td>' +
@@ -199,7 +199,7 @@
           '</tr>';
         return sampleRow + mainRow;
       }).join('');
-      html += '</tbody><tfoot><tr style="background:var(--panel);font-weight:700">';
+      html += '</tbody><tfoot><tr style="background:#FFD600;font-weight:800;color:#222">';
       html += '<td colspan="7" style="text-align:right;padding:8px 10px">합계 ('+rows.length+' LOT) · 미판매 '+fmtN(sumUnsold)+' / <span style="color:#ef4444;font-weight:700">판매완료 '+fmtN(sumSold)+'</span></td>';
       html += '<td class="mono-cell" style="text-align:right">'+fmtN(sumBal)+'</td>';
       html += '<td class="mono-cell" style="text-align:right">'+fmtN(sumNet)+'</td>';
@@ -454,7 +454,7 @@
         + '<td style="padding:6px 8px;font-family:monospace">' + escapeHtml(r.sub_lt || r.tonbag_no || '') + '</td>'
         + '<td style="padding:6px 8px;text-align:right">' + ((r.weight != null && r.weight !== '') ? Number(r.weight).toFixed(3) : '-') + '</td>'
         + '<td style="padding:6px 8px;text-align:center"><span style="color:' + sc + ';font-weight:700">' + escapeHtml(r.status||'') + '</span></td>'
-        + '<td style="padding:6px 8px;text-align:center">' + (isSample ? '🔬 샘플' : '📦 일반') + '</td>'
+        + '<td style="padding:6px 8px;text-align:center">' + (isSample ? 'SP' : '📦 일반') + '</td>'
         + '<td style="padding:6px 8px;text-align:center">' + escapeHtml(r.location || '-') + '</td>'
         + '<td style="padding:6px 8px;font-family:monospace">' + escapeHtml(r.container || '-') + '</td>'
         + '<td style="padding:6px 8px;text-align:center">' + escapeHtml((r.inbound_date || '').slice(0,10)) + '</td>'
@@ -466,7 +466,7 @@
     var sampleCnt = rows.filter(function(r){ return r.is_sample==1||r.is_sample===true; }).length;
     document.getElementById('tbm-summary').textContent =
       '표시 ' + rows.length + '개 / 합계 ' + totalMt.toFixed(3) + ' MT'
-      + (sampleCnt > 0 ? ' (🔬 샘플 ' + sampleCnt + '개 포함)' : '');
+      + (sampleCnt > 0 ? ' (SP ' + sampleCnt + '개 포함)' : '');
   };
 
   window.invShowLotHistory = function(lot) {
@@ -489,7 +489,7 @@
   /* ===================================================
      PENDING 입고 대기 목록 (참고용 — 재고 집계 제외)
      =================================================== */
-  window._pendingViewMode = window._pendingViewMode || 'lot';
+  window._pendingViewMode = window._pendingViewMode || 'date';
 
   function _pendingModeBtn(val, label, current) {
     var active = val === current
@@ -576,7 +576,8 @@
       var lotNos = lots.map(function(r){ return r.lot_no; });
       var groupId = _pendingGroupId(opts.prefix, idx);
       var inputId = 'date-' + groupId;
-      var defaultDate = opts.defaultDate ? opts.defaultDate(key, lots, today) : today;
+      var _arrivals = Array.from(new Set(lots.map(function(r){ return r.arrival_date; }).filter(Boolean))).sort();
+      var arrivalRef = _arrivals.length ? _arrivals.slice(0, 3).join(', ') : '-';
       var summary = opts.summary ? opts.summary(key, lots) : '';
 
       html += '<div style="margin-bottom:12px;border:1px solid var(--border,#334155);border-radius:8px;overflow:hidden">'
@@ -585,8 +586,10 @@
         + '<strong style="color:var(--text);font-family:monospace">' + escapeHtml(key) + '</strong>'
         + '<span style="font-size:12px;color:var(--text-muted)">' + lots.length + ' LOT</span>'
         + (summary ? '<span style="font-size:11px;color:var(--text-muted)">' + escapeHtml(summary) + '</span>' : '')
-        + '<input type="date" id="' + inputId + '" value="' + escapeHtml(defaultDate) + '" max="' + today + '" '
-        + 'style="padding:4px 8px;background:var(--bg,#0f172a);border:1px solid var(--border,#334155);border-radius:4px;color:var(--text);font-size:12px;margin-left:auto" '
+        + '<span style="font-size:11px;color:var(--text-muted);margin-left:auto;white-space:nowrap">📅 도착일: <strong style="color:var(--text)">' + escapeHtml(arrivalRef) + '</strong></span>'
+        + '<span style="font-size:12px;color:var(--text-muted);white-space:nowrap">🏭 입고확정일:</span>'
+        + '<input type="date" id="' + inputId + '" value="" max="' + today + '" '
+        + 'style="padding:4px 8px;background:var(--bg,#0f172a);border:1px solid var(--accent,#3b82f6);border-radius:4px;color:var(--text);font-size:12px" '
         + 'onclick="event.stopPropagation()">'
         + '<button class="btn" style="background:#22c55e;color:#fff;font-size:12px;padding:4px 10px;white-space:nowrap" '
         + 'data-lots="' + _pendingGroupLotsAttr(lotNos) + '" data-date-input="' + inputId + '" '
@@ -594,7 +597,7 @@
         + '</div>'
         + '<div id="' + groupId + '" style="display:none">'
         + '<table class="data-table" style="margin:0"><thead><tr>'
-        + '<th style="color:var(--text-muted);text-align:center;width:36px">#</th><th>LOT</th><th>Product</th><th>Qty</th><th>BL No</th><th>Container</th><th>Vessel</th><th>Arrival</th><th style="width:50px">⚙️</th>'
+        + '<th style="color:var(--text-muted);text-align:center;width:36px">#</th><th>LOT</th><th>Product</th><th>Qty</th><th>BL No</th><th>Container</th><th>Vessel</th><th>Arrival</th><th title="실제 창고 반입 예정일 (클릭하여 편집)">🏭 입고일</th><th style="width:50px">⚙️</th>'
         + '</tr></thead><tbody>';
 
       lots.forEach(function(r, _i) {
@@ -607,6 +610,12 @@
           + '<td class="mono-cell">' + escapeHtml(r.container_no||'-') + '</td>'
           + '<td class="mono-cell">' + escapeHtml(r.vessel||'-') + '</td>'
           + '<td class="mono-cell">' + escapeHtml(r.arrival_date||'-') + '</td>'
+          + '<td class="mono-cell" style="padding:2px 4px">'
+          + '<button class="btn btn-ghost btn-xs" style="font-size:12px;padding:2px 8px;width:100%;text-align:left;'
+          + ((r.inbound_date||'').slice(0,10) ? 'color:#22c55e;font-weight:600' : 'color:var(--text-muted)') + '" '
+          + 'onclick="window.pendingEditInboundDate(this,\'' + escapeHtml(r.lot_no||'') + '\',\'' + escapeHtml((r.inbound_date||'').slice(0,10)) + '\')" '
+          + 'title="실제 입고일 편집 (클릭)">' + ((r.inbound_date||'').slice(0,10) || '📅 미지정') + '</button>'
+          + '</td>'
           + '<td style="text-align:center"><button class="btn btn-ghost" style="padding:1px 8px;font-size:12px" '
           + 'onclick="window.showPendingActionMenu(event,\'' + escapeHtml(r.lot_no||'') + '\')">⋯</button></td>'
           + '</tr>';
@@ -658,9 +667,9 @@
         + '<h2 style="margin:0;font-size:16px;color:#94a3b8">⏳ Pending — 포트 입항 대기 (참고용, 재고 미포함)</h2>'
         + '<span style="font-size:12px;color:var(--text-muted)">' + rows.length + ' LOT</span>'
         + '<div style="display:flex;gap:4px;margin-left:auto">'
-        + _pendingModeBtn('lot', 'LOT별', mode)
-        + _pendingModeBtn('container', '컨테이너별', mode)
-        + _pendingModeBtn('date', '날짜별', mode)
+        + _pendingModeBtn('date', '📅 도착일별', mode)
+        + _pendingModeBtn('container', '📦 컨테이너별', mode)
+        + _pendingModeBtn('lot', '🔢 LOT별', mode)
         + '</div>'
         + '<button class="btn btn-ghost" style="font-size:12px" onclick="window.loadPendingPage()">🔄 새로고침</button>'
         + '<button class="btn btn-secondary" style="font-size:12px;padding:4px 12px" onclick="window.exportPendingExcel()" title="현재 화면 Pending 데이터를 Excel로 내보냅니다">📊 Excel 내보내기</button>'
@@ -841,17 +850,18 @@
       var mode = window._availViewMode || 'lot';
       if (mode === 'container') rows = rows.slice().sort(function(a,b){ return (a.container||'').localeCompare(b.container||''); });
       else if (mode === 'date') rows = rows.slice().sort(function(a,b){ return (a.arrival_date||a.inbound_date||'').localeCompare(b.arrival_date||b.inbound_date||''); });
-      var sumBal = 0, sumNet = 0, sumIni = 0, sumOb = 0;
+      var sumBal = 0, sumNet = 0, sumIni = 0, sumOb = 0, sumSampleMt = 0;
       rows.forEach(function(r) {
         if (r.balance      != null && !isNaN(Number(r.balance)))      sumBal += Number(r.balance);
         if (r.net          != null && !isNaN(Number(r.net)))          sumNet += Number(r.net);
         if (r.initial_weight  != null) sumIni += Number(r.initial_weight);
         if (r.outbound_weight != null) sumOb  += Number(r.outbound_weight);
+        if (r.sample_weight_mt != null && !isNaN(Number(r.sample_weight_mt))) sumSampleMt += Number(r.sample_weight_mt);
       });
       var html = '<section style="padding:12px 16px">'
         + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap">'
         + '<h2 style="margin:0;font-size:16px;color:#22c55e">✅ Available 재고 — 판매 가능 물량</h2>'
-        + '<span style="font-size:12px;color:var(--text-muted)">' + rows.length + ' LOT · Balance ' + fmtN(sumBal) + ' MT</span>'
+        + '<span style="font-size:12px;color:var(--text-muted)">' + rows.length + ' LOT · 📦 ' + fmtN(sumBal - sumSampleMt) + ' MT' + (sumSampleMt > 0 ? ' + 🧪 샘플 ' + fmtN(sumSampleMt) + ' MT' : '') + '</span>'
         + '<button class="btn btn-ghost" style="font-size:12px;margin-left:auto" onclick="window.loadAvailablePage()">🔄 새로고침</button>'
         + '<button class="btn" style="font-size:12px;padding:4px 10px;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid #ef444455" onclick="window.availCancelSelected()">↩️ 선택 취소(→PENDING)</button>'
         + '<div style="display:flex;gap:4px">' + _availModeBtn('lot','LOT별') + _availModeBtn('container','컨테이너별') + _availModeBtn('date','입고일별') + '</div>'
@@ -861,7 +871,7 @@
         + '<th>#</th><th style="text-align:left !important">LOT</th><th>SAP</th><th>BL</th><th>Product</th>'
         + '<th>Status</th><th>Balance(MT)</th><th title="앞=가용 중량(MT, 바로 배분 가능) / 뒤=예약(RESERVED) 중량.  예: 3.000/▲2.000 → 총 5MT 중 2MT 예약·3MT 배분 가능">Avail/Rsv(MT)</th><th>NET(MT)</th><th>Container</th>'
         + '<th title="총 톤백 개수 (MAXI BAG)">MXBG</th><th title="가용 톤백 수(개) — 바로 배분 가능한 톤백">Avail</th><th>Invoice</th>'
-        + '<th>Ship</th><th>Arrival</th><th>Con Return</th><th>Free</th><th>WH</th>'
+        + '<th>Arrival</th><th title="실제 창고 반입일 (Inbound Date)" style="color:#4fc3f7">🏭 Inbound</th><th>Con Return</th><th>Free</th><th>WH</th>'
         + '<th>Inbound(MT)</th><th>Location</th><th></th>'
         + '</tr></thead><tbody>';
       html += rows.map(function(r, i) {
@@ -877,8 +887,8 @@
             '<td class="mono-cell cell-left" style="color:#eab308;font-weight:700;padding:6px 10px">' + lotKey + '(SP)</td>' +
             '<td class="mono-cell" style="color:#94a3b8">' + escapeHtml(r.sap||'') + '</td>' +
             '<td class="mono-cell" style="color:#94a3b8">' + escapeHtml(r.bl||'') + '</td>' +
-            '<td><span class="tag" style="background:rgba(234,179,8,0.2);color:#eab308">' + escapeHtml(r.product||'') + '</span></td>' +
-            '<td style="color:#eab308;font-weight:600">SAMPLE</td>' +
+            '<td><span class="tag" style="background:rgba(234,179,8,0.2);color:#eab308">' + escapeHtml((r.product||'') + ' (SP)') + '</span></td>' +
+            '<td><span class="tag" style="background:rgba(34,197,94,0.15);color:#22c55e;font-weight:700">✅ AVAILABLE</span></td>' +
             '<td class="mono-cell" style="text-align:right;color:#eab308;font-weight:600">' + fmtN(r.sample_weight_mt||0) + '</td>' +
             '<td class="mono-cell" style="text-align:right;color:#eab308">' + fmtN(r.sample_weight_mt||0) + '</td>' +
             '<td class="mono-cell" style="text-align:right;color:#eab308">' + fmtN(r.sample_weight_mt||0) + '</td>' +
@@ -886,8 +896,8 @@
             '<td class="mono-cell" style="text-align:center;color:#eab308;font-weight:700">' + r.sample_bags + '</td>' +
             '<td class="mono-cell" style="text-align:center;color:#eab308;font-weight:700">' + r.sample_bags + '</td>' +
             '<td class="mono-cell" style="color:#94a3b8">' + escapeHtml(r.invoice_no||'') + '</td>' +
-            '<td class="mono-cell" style="color:#94a3b8">' + escapeHtml((r.ship_date||'').slice(0,10)) + '</td>' +
             '<td class="mono-cell" style="color:#94a3b8">' + escapeHtml((r.arrival_date||'').slice(0,10)) + '</td>' +
+            '<td class="mono-cell" style="color:#4fc3f7;font-weight:600">' + (escapeHtml((r.date||'').slice(0,10)) || '-') + '</td>' +
             '<td class="mono-cell" style="color:#94a3b8">' + escapeHtml((r.con_return||'').slice(0,10)) + '</td>' +
             '<td class="mono-cell" style="text-align:center;color:#94a3b8">' + (r.free_time!=null?r.free_time:'-') + '</td>' +
             '<td class="mono-cell" style="color:#94a3b8">' + escapeHtml(r.wh||'') + '</td>' +
@@ -906,7 +916,7 @@
           + '<td class="mono-cell">' + escapeHtml(r.bl||'') + '</td>'
           + '<td><span class="tag">' + escapeHtml(r.product||'') + '</span></td>'
           + '<td><span class="tag" style="background:rgba(34,197,94,0.15);color:#22c55e">✅ AVAILABLE</span></td>'
-          + '<td class="mono-cell" style="text-align:right">' + (r.balance!=null?fmtN(r.balance):'-') + '</td>'
+          + '<td class="mono-cell" style="text-align:right">' + (r.balance!=null?fmtN((r.balance||0)-(r.sample_weight_mt||0)):'-') + '</td>'
           + '<td title="앞=가용 중량(MT, 바로 배분 가능) / 뒤=예약(RESERVED) 중량.  예: 3.000/▲2.000 → 총 5MT 중 2MT 예약·3MT 배분 가능" class="mono-cell" style="text-align:right">'
             + '<span style="color:#22c55e;font-weight:700">' + (r.avail_mt!=null?fmtN(r.avail_mt):'-') + '</span>'
             + '<span style="color:#94a3b8;font-size:11px"> / </span>'
@@ -922,8 +932,8 @@
           + '</td>'
           + '<td title="가용 톤백 수(개) — 바로 배분 가능한 톤백" class="mono-cell" style="text-align:center">' + (r.avail_bags!=null?r.avail_bags:'-') + '</td>'
           + '<td class="mono-cell">' + escapeHtml(r.invoice_no||'') + '</td>'
-          + '<td class="mono-cell">' + escapeHtml((r.ship_date||'').slice(0,10)) + '</td>'
           + '<td class="mono-cell">' + escapeHtml((r.arrival_date||'').slice(0,10)) + '</td>'
+          + '<td class="mono-cell" style="color:#4fc3f7;font-weight:600">' + (escapeHtml((r.date||'').slice(0,10)) || '-') + '</td>'
           + '<td class="mono-cell">' + escapeHtml((r.con_return||'').slice(0,10)) + '</td>'
           + '<td class="mono-cell" style="text-align:center">' + (r.free_time!=null?r.free_time:'-') + '</td>'
           + '<td class="mono-cell">' + escapeHtml(r.wh||'') + '</td>'
@@ -936,15 +946,25 @@
           + '</tr>';
         return mainRow + sampleRow;
       }).join('');
-      html += '</tbody><tfoot><tr style="background:var(--panel);font-weight:700">';
-      html += '<td colspan="7" style="text-align:right;padding:8px 10px">합계 (' + rows.length + ' LOT)</td>';
-      html += '<td class="mono-cell" style="text-align:right">' + fmtN(sumBal) + '</td>';
+      var sumRegBal = Math.max(0, (sumBal||0) - (sumSampleMt||0));
+      html += '</tbody><tfoot>';
+      html += '<tr style="background:#FFD600;font-weight:800;color:#222">';
+      html += '<td colspan="7" style="text-align:right;padding:8px 10px">📦 톤백 합계 (' + rows.length + ' LOT)</td>';
+      html += '<td class="mono-cell" style="text-align:right">' + fmtN(sumRegBal) + '</td>';
       html += '<td></td>';
       html += '<td class="mono-cell" style="text-align:right">' + fmtN(sumNet) + '</td>';
       html += '<td colspan="9"></td>';
       html += '<td class="mono-cell" style="text-align:right">' + fmtN(sumIni) + '</td>';
       html += '<td colspan="2"></td>';
-      html += '</tr></tfoot></table></div></section>';
+      html += '</tr>';
+      if (sumSampleMt > 0) {
+        html += '<tr style="background:#FFF9C4;font-weight:800;color:#92400e">';
+        html += '<td colspan="7" style="text-align:right;padding:6px 10px">🧪 샘플 합계</td>';
+        html += '<td class="mono-cell" style="text-align:right">' + fmtN(sumSampleMt) + '</td>';
+        html += '<td colspan="12"></td>';
+        html += '</tr>';
+      }
+      html += '</tfoot></table></div></section>';
       c.innerHTML = html;
     }).catch(function(e) {
       if (window.getCurrentRoute() !== route) return;

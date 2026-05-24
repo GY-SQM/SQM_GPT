@@ -70,7 +70,12 @@
       ? _inboundAllRows
       : _inboundAllRows.filter(function(r){ return r.status === status; });
     var count = document.getElementById('inbound-count');
-    if (count) count.textContent = filtered.length + ' / ' + _inboundAllRows.length + '건';
+    if (count) {
+      count.style.cssText = 'display:inline-block;padding:3px 14px;'
+        + 'background:#FFD600;border-radius:6px;font-size:13px;'
+        + 'color:#222;font-weight:800;box-shadow:0 1px 3px rgba(0,0,0,.2);';
+      count.textContent = '📦 ' + filtered.length + ' / ' + _inboundAllRows.length + ' 건';
+    }
     _renderInboundRows(filtered);
   }
   window._inboundFilter = _inboundFilter;
@@ -358,25 +363,77 @@
     return html;
   }
 
+  /* ── SOLD 날짜 헬퍼 ── */
+  function _soldTodayStr() {
+    return new Date().toISOString().slice(0, 10);
+  }
+  window._soldSetToday = function() {
+    var t = _soldTodayStr();
+    var f = document.getElementById('sold-date-from');
+    var to = document.getElementById('sold-date-to');
+    if (f) f.value = t;
+    if (to) to.value = t;
+    window._soldSearch();
+  };
+  window._soldSetWeek = function() {
+    var now = new Date();
+    var mon = new Date(now);
+    mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    var f = document.getElementById('sold-date-from');
+    var to = document.getElementById('sold-date-to');
+    if (f)  f.value  = mon.toISOString().slice(0, 10);
+    if (to) to.value = _soldTodayStr();
+    window._soldSearch();
+  };
+  window._soldSetMonth = function() {
+    var now = new Date();
+    var first = new Date(now.getFullYear(), now.getMonth(), 1);
+    var f = document.getElementById('sold-date-from');
+    var to = document.getElementById('sold-date-to');
+    if (f)  f.value  = first.toISOString().slice(0, 10);
+    if (to) to.value = _soldTodayStr();
+    window._soldSearch();
+  };
+  window._soldSearch = function() {
+    var f  = document.getElementById('sold-date-from');
+    var to = document.getElementById('sold-date-to');
+    window._outboundDateFrom = f  ? f.value  : '';
+    window._outboundDateTo   = to ? to.value : '';
+    renderPage('outbound');
+  };
+
   function loadOutboundPage() {
     var route = window.getCurrentRoute();
     var c = document.getElementById('page-container');
     if (!c) return;
     // v868 fix (2026-05-16): 그룹화 모드 — 헤더 토글 버튼이 참조
-    var _outMode = window._outboundViewMode || 'lot';
+    var _outMode    = window._outboundViewMode || 'lot';
+    var _initFrom   = window._outboundDateFrom || '';
+    var _initTo     = window._outboundDateTo   || '';
     c.innerHTML = [
       '<section class="page" data-page="outbound">',
-      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0 12px">',
-      '  <h2 style="margin:0">📤 출고 완료 (Sold / Outbound)</h2>',
-      '  <div style="display:flex;gap:4px;margin-left:12px">' + 
-         _outboundModeBtn('lot', 'LOT별', _outMode) + 
-         _outboundModeBtn('customer', '고객사별', _outMode) + 
-         _outboundModeBtn('date', '출고일별', _outMode) + 
+      '<div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;padding:8px 0 10px;overflow-x:auto">',
+      '  <h2 style="margin:0;white-space:nowrap;font-size:15px">📤 출고 완료 (SOLD)</h2>',
+      '  <div style="display:flex;gap:3px;flex-shrink:0">' +
+         _outboundModeBtn('lot', 'LOT별', _outMode) +
+         _outboundModeBtn('customer', '고객사별', _outMode) +
+         _outboundModeBtn('date', '출고일별', _outMode) +
       '  </div>',
-      '  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">',
-      '    <button class="btn btn-primary" onclick="window.showOutboundPickingModal()" style="font-weight:600">📋 Picking List 업로드</button>',
-      '    <button class="btn" onclick="window.allocRevertStep(\'SOLD\')" style="font-size:12px" title="SOLD 상태를 PICKED로 되돌립니다">↩ SOLD &rarr; PICKED</button>',
-      '    <button class="btn btn-secondary" onclick="renderPage(\'outbound\')">🔁 새로고침</button>',
+      '  <span style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0"></span>',
+      '  <input type="date" id="sold-date-from" value="' + (_initFrom || _soldTodayStr()) + '"'
+        + ' style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;background:var(--panel);color:var(--text);width:114px;flex-shrink:0">',
+      '  <span style="font-size:12px;color:var(--text-muted);flex-shrink:0">~</span>',
+      '  <input type="date" id="sold-date-to" value="' + (_initTo   || _soldTodayStr()) + '"'
+        + ' style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;background:var(--panel);color:var(--text);width:114px;flex-shrink:0">',
+      '  <button class="btn" onclick="window._soldSetToday()" style="font-size:11px;padding:2px 6px;flex-shrink:0">오늘</button>',
+      '  <button class="btn" onclick="window._soldSetWeek()"  style="font-size:11px;padding:2px 6px;flex-shrink:0">이번주</button>',
+      '  <button class="btn" onclick="window._soldSetMonth()" style="font-size:11px;padding:2px 6px;flex-shrink:0">이번달</button>',
+      '  <button class="btn btn-primary" onclick="window._soldSearch()" style="font-size:11px;padding:2px 8px;font-weight:700;flex-shrink:0">조회</button>',
+      '  <span style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0"></span>',
+      '  <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">',
+      '    <button class="btn btn-primary" onclick="window.showOutboundPickingModal()" style="font-size:12px;padding:3px 8px">📋 Picking</button>',
+      '    <button class="btn" onclick="window.allocRevertStep(\'SOLD\')" style="font-size:11px;padding:2px 6px" title="SOLD→PICKED 되돌리기">↩ SOLD→PICKED</button>',
+      '    <button class="btn btn-secondary" onclick="window._soldSearch()" style="font-size:12px;padding:3px 6px">🔁</button>',
       '  </div>',
       '</div>',
       '<div id="outbound-loading" style="padding:40px;text-align:center;color:var(--text-muted)">⏳ 데이터 로딩 중...</div>',
@@ -394,7 +451,11 @@
       '</section>'
     ].join('');
 
-    apiGet('/api/q/sold-list').then(function(res){
+    var _sf = document.getElementById('sold-date-from');
+    var _st = document.getElementById('sold-date-to');
+    var _sd = (_sf && _sf.value) ? '&start_date=' + _sf.value : '';
+    var _ed = (_st && _st.value) ? '&end_date='   + _st.value : '';
+    apiGet('/api/q/sold-list?limit=1000' + _sd + _ed).then(function(res){
       if (window.getCurrentRoute() !== route) return;
       var rows = extractRows(res);
       document.getElementById('outbound-loading').style.display = 'none';
@@ -439,7 +500,28 @@
           '<td class="mono-cell">'+escapeHtml(r.sold_date||'-')+'</td>' +
           '</tr>';
       }).join('');
-      document.getElementById('outbound-table').style.display = '';
+      /* v8.6.9: 전체 합계 tfoot */
+      var _outTbl = document.getElementById('outbound-table');
+      var _outTfoot = _outTbl ? _outTbl.querySelector('tfoot') : null;
+      if (_outTbl && !_outTfoot) {
+        var _sumTb = 0, _sumKg = 0;
+        rows.forEach(function(r) {
+          _sumTb += Number(r.tonbag_count || 0);
+          _sumKg += Number(r.total_kg     || 0);
+        });
+        var _tf = document.createElement('tfoot');
+        _tf.innerHTML = '<tr style="background:#FFD600;font-weight:800;color:#222;font-size:13px">'
+          + '<td colspan="4" style="text-align:right;padding:6px 10px">'
+          + '합계 ' + rows.length + ' LOT</td>'
+          + '<td></td><td></td>'
+          + '<td class="mono-cell" style="text-align:right;padding:6px 8px">'
+          + _sumTb.toLocaleString('ko-KR') + ' 개</td>'
+          + '<td class="mono-cell" style="text-align:right;padding:6px 8px">'
+          + fmtN(_sumKg) + ' kg</td>'
+          + '<td></td></tr>';
+        _outTbl.appendChild(_tf);
+      }
+      _outTbl.style.display = '';
       dbgLog('📤','outbound-page','rows='+rows.length,'#4caf50');
     }).catch(function(e){
       if (window.getCurrentRoute() !== route) return;
@@ -791,7 +873,7 @@
       '<input id="scan-input" class="input" placeholder="Scan or type barcode + Enter" style="width:100%;margin-bottom:12px">',
       '<div style="display:flex;gap:8px;margin-bottom:16px">',
       '<button class="btn btn-primary btn-sm" onclick="window.ScanActions.quickAction(\'inbound\')">Inbound</button>',
-      '<button class="btn btn-warning btn-sm" onclick="window.ScanActions.quickAction(\'outbound\')">Outbound</button>',
+      '<button class="btn btn-warning btn-sm" onclick="window.ScanActions.quickAction(\'outbound\')">Sold</button>',
       '<button class="btn btn-secondary btn-sm" onclick="window.ScanActions.quickAction(\'move\')">Move</button>',
       '</div>',
       '<table class="data-table"><thead><tr><th>Time</th><th>Barcode</th><th>Action</th><th>Result</th></tr></thead>',

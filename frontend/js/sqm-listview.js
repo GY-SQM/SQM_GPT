@@ -70,6 +70,7 @@
     { k: 'rack_location_candidate', h: '랙 위치 후보', w: 130, mono: true, align: 'center' },
     { k: 'cell_state',   h: '셀 상태',     w: 110, align: 'center', badge: 'cell' },
     { k: 'inbound_date', h: '입고일',      w: 100, align: 'center' },
+    { k: 'arrival_date', h: '도착일',      w: 100, align: 'center' },
     { k: 'sold_to',      h: '출고대상',    w: 130, align: 'center' },
     { k: 'sale_ref',     h: 'Sale Ref',   w: 130, align: 'center' },
     { k: 'remarks',      h: '비고',       w: 160 },
@@ -117,6 +118,15 @@
     }
     return _esc(val);
   }
+
+  /* ── sort 상태 (모듈 레벨) ── */
+  var _lvAllRows   = [];   // 현재 모달의 전체 행 캐시
+  var _lvCols      = [];   // 현재 컬럼 정의
+  var _lvOnClick   = null; // 행 클릭 핸들러
+  var _lvSortKey   = '';   // 현재 정렬 컬럼 key
+  var _lvSortDir   = 1;    // 1=오름, -1=내림
+  var _lvFootFn    = null; // 현재 footer 렌더 함수
+  var _lvFootEl    = null; // footer DOM 요소
 
   /* ── 공통 모달 ── */
   var _modalEl = null;
@@ -171,22 +181,54 @@
 
   /* ── 렌더 ──
      v8.6.9: onRowClick 옵션 추가 — 행 클릭 drilldown (LOT → 톤백) 용 */
+  /* v8.6.9: sort helper */
+  function _sortRows(rows, key, dir) {
+    return rows.slice().sort(function(a, b) {
+      var va = a[key], vb = b[key];
+      if (va == null) va = '';
+      if (vb == null) vb = '';
+      var na = Number(va), nb = Number(vb);
+      if (!isNaN(na) && !isNaN(nb)) return (na - nb) * dir;
+      return String(va).localeCompare(String(vb), 'ko') * dir;
+    });
+  }
+
   function _renderTable(cols, rows, container, onRowClick) {
+    /* v8.6.9: 모듈 레벨 캐시 갱신 */
+    _lvCols    = cols;
+    _lvOnClick = onRowClick || null;
     if (!rows || rows.length === 0) {
       container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px;">📭 데이터가 없습니다.</div>';
       return;
     }
+    /* v8.6.9: 정렬 적용 */
+    var displayRows = (_lvSortKey)
+      ? _sortRows(rows, _lvSortKey, _lvSortDir)
+      : rows;
     var thead = cols.map(function(c) {
       var align = c.align ? 'text-align:' + c.align + ';' : '';
-      return '<th style="padding:6px 8px;background:var(--bg-hover);color:var(--accent);'
+      var isActive = (c.k === _lvSortKey);
+      var arrow = isActive ? (_lvSortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      var arrowColor = isActive ? 'color:#FFD700;' : 'color:rgba(255,255,255,0.3);';
+      return '<th data-sort-key="' + _esc(c.k) + '" '
+        + 'style="padding:6px 8px;background:var(--bg-hover);color:var(--accent);'
         + 'font-size:11px;font-weight:700;border-bottom:2px solid var(--accent);'
-        + 'position:sticky;top:0;z-index:1;white-space:nowrap;' + align
-        + (c.w ? 'min-width:' + c.w + 'px;' : '') + '">' + _esc(c.h) + '</th>';
+        + 'position:sticky;top:0;z-index:1;white-space:nowrap;cursor:pointer;'
+        + 'user-select:none;' + align
+        + (c.w ? 'min-width:' + c.w + 'px;' : '') + '">'
+        + _esc(c.h)
+        + '<span style="font-size:9px;margin-left:2px;' + arrowColor + '">' + arrow + '</span>'
+        + '</th>';
     }).join('');
     var clickable = (typeof onRowClick === 'function');
-    var tbody = rows.map(function(r, ri) {
+    var tbody = displayRows.map(function(r, ri) {
       var tds = cols.map(function(c) {
-        var v = _formatCell(r[c.k], c);
+        var _cv = r[c.k];
+        /* v8.6.9: sub_lt=0 sample row — show product suffix as " SP". */
+        if (c.k === 'product' && (r.is_sample || Number(r.sub_lt) === 0)) {
+          _cv = (_cv || '') + ' SP';
+        }
+        var v = _formatCell(_cv, c);
         var style = 'padding:4px 8px;border-bottom:1px solid var(--panel-border);'
           + 'font-size:12px;white-space:nowrap;';
         if (c.align)  style += 'text-align:' + c.align + ';';
@@ -204,6 +246,24 @@
       + '<thead><tr>' + thead + '</tr></thead>'
       + '<tbody>' + tbody + '</tbody>'
       + '</table>';
+    /* v8.6.9: 헤더 클릭 → 정렬 */
+    container.querySelectorAll('thead th[data-sort-key]').forEach(function(th) {
+      th.addEventListener('click', function() {
+        var key = th.dataset.sortKey;
+        if (_lvSortKey === key) {
+          _lvSortDir = _lvSortDir * -1;
+        } else {
+          _lvSortKey = key;
+          _lvSortDir = 1;
+        }
+        /* 현재 컨테이너의 allRows 는 부모 스코프에 없으므로
+           container 에 저장된 전체 행 캐시를 재활용 */
+        var body = document.getElementById('sqm-listview-body');
+        var foot = document.getElementById('sqm-listview-foot');
+        _renderTable(_lvCols, _lvAllRows, body, _lvOnClick);
+        if (_lvFootFn && foot) _lvFootFn(foot, _lvAllRows);
+      });
+    });
     /* v8.6.9: 행 클릭 핸들러 (drilldown) */
     if (clickable) {
       container.querySelectorAll('tbody tr').forEach(function(tr) {
@@ -216,45 +276,60 @@
         });
         tr.addEventListener('click', function() {
           var idx = parseInt(tr.dataset.rowIdx, 10);
-          onRowClick(rows[idx]);
+          onRowClick(displayRows[idx]);
         });
       });
     }
   }
 
 
-  /* -- LOT footer totals bar ---------------------------------------- */
+  /* -- LOT footer totals bar (v8.6.9: 노란배경·큰폰트·톤백/샘플 분리) -- */
   function _renderLotFooter(foot, rows) {
-    var totalNet = 0, totalCur = 0, totalTonbag = 0;
+    /* v8.6.9: 모듈 레벨 캐시에 footer 함수 등록 */
+    _lvFootFn = _renderLotFooter;
+    _lvFootEl = foot;
+    var totalNet = 0, totalCur = 0, totalReg = 0, totalSmp = 0;
     rows.forEach(function(r) {
-      totalNet    += Number(r.net_weight     || 0);
-      totalCur    += Number(r.current_weight || 0);
-      totalTonbag += Number(r.tonbag_count   || 0);
+      totalNet += Number(r.net_weight     || 0);
+      totalCur += Number(r.current_weight || 0);
+      totalReg += Number(r.regular_bags   || 0);
+      totalSmp += Number(r.sample_bags    || 0);
     });
-    var s = 'display:inline-block;padding:2px 14px;margin-right:8px;'
-          + 'background:rgba(79,195,247,0.13);border-radius:6px;'
-          + 'font-size:12px;color:var(--accent,#4fc3f7);font-weight:700;';
-    var hint = 'font-size:11px;color:var(--text-muted);margin-left:6px;';
+    /* 노란 배경 강조 스타일 */
+    var s = 'display:inline-block;padding:4px 18px;margin-right:10px;'
+          + 'background:#FFD600;border-radius:8px;'
+          + 'font-size:14px;color:#222;font-weight:800;'
+          + 'box-shadow:0 1px 4px rgba(0,0,0,.25);';
+    var hint = 'font-size:11px;color:var(--text-muted);margin-left:4px;';
+    /* 톤백 분리: regular + sample */
+    var tbStr = totalReg > 0 || totalSmp > 0
+      ? totalReg.toLocaleString('ko-KR') + '개 + SP ' + totalSmp.toLocaleString('ko-KR') + '개'
+      : (totalReg + totalSmp).toLocaleString('ko-KR') + '개';
     foot.innerHTML =
         '<span style="' + s + '">📦 LOT ' + rows.length.toLocaleString('ko-KR') + ' 건</span>'
       + '<span style="' + s + '">⚖ 순중량 ' + totalNet.toLocaleString('ko-KR', {maximumFractionDigits:2}) + ' kg</span>'
       + '<span style="' + s + '">📊 현재 ' + totalCur.toLocaleString('ko-KR', {maximumFractionDigits:2}) + ' kg</span>'
-      + '<span style="' + s + '">🎒 톤백 ' + totalTonbag.toLocaleString('ko-KR') + ' 개</span>'
+      + '<span style="' + s + '">🧱 톤백 ' + tbStr + '</span>'
       + '<span style="' + hint + '">※ 행 클릭 → 톤백 상세 보기 · 엑셀 다운로드는 우상단 버튼</span>';
   }
 
-  /* -- Tonbag footer totals bar ------------------------------------- */
+  /* -- Tonbag footer totals bar (v8.6.9: 노란배경) ----------------- */
   function _renderTonbagFooter(foot, rows) {
-    var totalWeight = 0;
+    var totalWeight = 0, totalSample = 0, totalRegular = 0;
     rows.forEach(function(r) {
-      totalWeight += Number(r.weight_kg || 0);
+      totalWeight  += Number(r.weight_kg  || 0);
+      if (r.is_sample) totalSample++;  else totalRegular++;
     });
-    var s = 'display:inline-block;padding:2px 14px;margin-right:8px;'
-          + 'background:rgba(79,195,247,0.13);border-radius:6px;'
-          + 'font-size:12px;color:var(--accent,#4fc3f7);font-weight:700;';
-    var hint = 'font-size:11px;color:var(--text-muted);margin-left:6px;';
+    var s = 'display:inline-block;padding:4px 18px;margin-right:10px;'
+          + 'background:#FFD600;border-radius:8px;'
+          + 'font-size:14px;color:#222;font-weight:800;'
+          + 'box-shadow:0 1px 4px rgba(0,0,0,.25);';
+    var hint = 'font-size:11px;color:var(--text-muted);margin-left:4px;';
+    var tbStr = (totalSample > 0)
+      ? '🧱 ' + totalRegular + '개 + SP ' + totalSample + '개'
+      : rows.length.toLocaleString('ko-KR') + ' 건';
     foot.innerHTML =
-        '<span style="' + s + '">🎒 톤백 ' + rows.length.toLocaleString('ko-KR') + ' 건</span>'
+        '<span style="' + s + '">🎒 톤백 ' + tbStr + '</span>'
       + '<span style="' + s + '">⚖ 총 중량 ' + totalWeight.toLocaleString('ko-KR', {maximumFractionDigits:2}) + ' kg</span>'
       + '<span style="' + hint + '">※ 엑셀 다운로드는 우상단 버튼 사용</span>';
   }
@@ -295,6 +370,9 @@
         .then(function(res) {
           var rows = (res && res.data && res.data.rows) || res.rows || [];
           allRows = rows;
+          _lvAllRows  = rows;   /* v8.6.9: sort 캐시 */
+          _lvSortKey  = '';     /* sort 초기화 */
+          _lvSortDir  = 1;
           cnt.textContent = '— ' + rows.length + ' 건';
           _renderTable(LOT_COLS, rows, body, _onLotRowClick);
           _renderLotFooter(foot, rows);
@@ -314,6 +392,8 @@
     fInp.value = '';
     fInp.oninput = function() {
       var _lotFiltered = _applyFilter(allRows, this.value);
+      _lvAllRows = _lotFiltered;  /* v8.6.9: 필터 후 sort 캐시 갱신 */
+      _lvSortKey = '';            /* 필터 변경 시 sort 초기화 */
       _renderTable(LOT_COLS, _lotFiltered, body, _onLotRowClick);
       _renderLotFooter(foot, _lotFiltered);
     };
