@@ -240,6 +240,13 @@ try:
 except Exception as e:
     logging.warning(f"allocation_api router load failed: {e}")
 
+try:
+    from backend.api.status_revert_api import router as status_revert_router
+    app.include_router(status_revert_router)
+    logging.info("status_revert_api router loaded OK (/api/status-revert/*)")
+except Exception as e:
+    logging.warning(f"status_revert_api router load failed: {e}")
+
 # ── v864.3 Phase 4-B: 즉시 출고 (F015) 네이티브 ─────
 try:
     from backend.api.outbound_api import router as outbound_api_router
