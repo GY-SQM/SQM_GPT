@@ -666,6 +666,7 @@
         + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">'
         + '<h2 style="margin:0;font-size:16px;color:#94a3b8">⏳ Pending — 포트 입항 대기 (참고용, 재고 미포함)</h2>'
         + '<span style="font-size:12px;color:var(--text-muted)">' + rows.length + ' LOT</span>'
+        + (window.SQMSummary ? window.SQMSummary.buildHeaderHTML(window.SQMSummary.compute(rows, {qtyField:function(r){return Number(r.net_weight||0)/1000;}, tonbagCountField:'mxbg_pallet'})) : '')
         + '<div style="display:flex;gap:4px;margin-left:auto">'
         + _pendingModeBtn('date', '📅 도착일별', mode)
         + _pendingModeBtn('container', '📦 컨테이너별', mode)
@@ -683,6 +684,16 @@
       if (mode === 'container') html += _renderPendingByContainer(rows);
       else if (mode === 'date') html += _renderPendingByDate(rows);
       else html += _renderPendingLotRows(rows);
+      // ── v8.6.9: 하단 합계 (tfoot 대체 — 그룹 모드 호환) ──
+      if (window.SQMSummary) {
+        var _pStats = window.SQMSummary.compute(rows, {qtyField:function(r){return Number(r.net_weight||0)/1000;}, tonbagCountField:'mxbg_pallet'});
+        html += '<div style="margin-top:12px;padding:10px 14px;background:#FFD600;color:#222;font-weight:800;border-radius:6px;font-size:19px;text-align:right">'
+              + '⏳ Pending 합계 (' + _pStats.lotCount.toLocaleString('ko-KR') + ' LOT) · '
+              + '📦 톤백 ' + Math.round(_pStats.tonbagCount).toLocaleString('ko-KR') + '개 ' + _pStats.tonbagMt.toFixed(4) + ' MT'
+              + (_pStats.sampleCount > 0 ? ' · 🧪 샘플 ' + Math.round(_pStats.sampleCount).toLocaleString('ko-KR') + '개 ' + _pStats.sampleMt.toFixed(4) + ' MT' : '')
+              + ' · 총 ' + _pStats.totalMt.toFixed(4) + ' MT'
+              + '</div>';
+      }
       html += '</section>';
       c.innerHTML = html;
       setTimeout(function(){ if(window.enhanceDataTables) enhanceDataTables(c); }, 0);
@@ -948,7 +959,7 @@
       }).join('');
       var sumRegBal = Math.max(0, (sumBal||0) - (sumSampleMt||0));
       html += '</tbody><tfoot>';
-      html += '<tr style="background:#FFD600;font-weight:800;color:#222">';
+      html += '<tr style="background:#FFD600;font-weight:800;color:#222;font-size:19px">';
       html += '<td colspan="7" style="text-align:right;padding:8px 10px">📦 톤백 합계 (' + rows.length + ' LOT)</td>';
       html += '<td class="mono-cell" style="text-align:right">' + fmtN(sumRegBal) + '</td>';
       html += '<td></td>';
@@ -958,7 +969,7 @@
       html += '<td colspan="2"></td>';
       html += '</tr>';
       if (sumSampleMt > 0) {
-        html += '<tr style="background:#FFF9C4;font-weight:800;color:#92400e">';
+        html += '<tr style="background:#FFF9C4;font-weight:800;color:#92400e;font-size:19px">';
         html += '<td colspan="7" style="text-align:right;padding:6px 10px">🧪 샘플 합계</td>';
         html += '<td class="mono-cell" style="text-align:right">' + fmtN(sumSampleMt) + '</td>';
         html += '<td colspan="12"></td>';
@@ -1133,6 +1144,77 @@
 
   window.executePendingConfirm = function(lotNo) {
     var dateEl = document.getElementById('pending-confirm-date');
+    var inboundDate = dateEl ? dateEl.value : '';
+    if (!inboundDate || !/^\d{4}-\d{2}-\d{2}$/.test(inboundDate)) {
+      showToast('error', '\ub0a0\uc9dc\ub97c \uc62c\ubc14\ub974\uac8c \uc785\ub825\ud574 \uc8fc\uc138\uc694 (YYYY-MM-DD)'); return;
+    }
+    if (inboundDate > new Date().toISOString().slice(0, 10)) {
+      showToast('error', '\ubbf8\ub798 \ub0a0\uc9dc\ub294 \uc785\ub825\ud560 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4'); return;
+    }
+    var ov = document.getElementById('pending-confirm-overlay');
+    if (ov) ov.remove();
+    apiPost('/api/inbound/confirm/' + encodeURIComponent(lotNo), { inbound_date: inboundDate })
+      .then(function() {
+        showToast('success', '\u2705 ' + lotNo + ' \uc785\uace0 \ud655\uc815 \uc644\ub8cc');
+        window.loadPendingPage();
+        setTimeout(function() { if (window.navigate) window.navigate('available'); }, 3000);
+      })
+      .catch(function(e) { showToast('error', '\uc785\uace0 \ud655\uc815 \uc2e4\ud328: ' + (e.message || e)); });
+  };
+
+  window.bulkConfirmPending = function() {
+    var checked = Array.from(document.querySelectorAll('.pending-cb:checked')).map(function(c) { return c.dataset.lot; });
+    if (!checked.length) { showToast('warning', '\ud655\uc815\ud560 LOT\uc744 \uc120\ud0dd\ud558\uc138\uc694'); return; }
+    var today = new Date().toISOString().slice(0, 10);
+    var ov = document.createElement('div');
+    ov.id = 'bulk-confirm-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center';
+    var inner = document.createElement('div');
+    inner.style.cssText = 'background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:12px;padding:24px;min-width:360px';
+    var h3 = document.createElement('h3');
+    h3.style.cssText = 'margin:0 0 12px;font-size:15px;color:var(--text)';
+    h3.textContent = '\u2705 \uc77c\uad04 \uc785\uace0 \ud655\uc815 (' + checked.length + '\uac74)';
+    var lotList = document.createElement('div');
+    lotList.style.cssText = 'max-height:120px;overflow-y:auto;margin-bottom:12px;font-size:12px;color:var(--text-muted);font-family:monospace';
+    lotList.textContent = checked.join(', ');
+    var label = document.createElement('label');
+    label.style.cssText = 'font-size:13px;color:var(--text-muted);display:block;margin-bottom:6px';
+    label.textContent = '\uc77c\uad04 \ud655\uc815\uc77c';
+    var input = document.createElement('input');
+    input.id = 'bulk-confirm-date';
+    input.type = 'date';
+    input.value = today;
+    input.max = today;
+    input.style.cssText = 'width:100%;box-sizing:border-box;padding:8px;background:var(--bg,#0f172a);border:1px solid var(--border,#334155);border-radius:6px;color:var(--text);font-size:14px;margin-bottom:16px';
+    var prog = document.createElement('div');
+    prog.id = 'bulk-progress';
+    prog.style.cssText = 'display:none;margin-bottom:12px;font-size:13px;color:var(--accent,#3b82f6)';
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;justify-content:flex-end';
+    var cancelBtn = document.createElement('button');
+    cancelBtn.className = 'btn btn-ghost';
+    cancelBtn.textContent = '\ucde8\uc18c';
+    cancelBtn.onclick = function() { ov.remove(); };
+    var execBtn = document.createElement('button');
+    execBtn.id = 'bulk-confirm-btn';
+    execBtn.className = 'btn btn-primary';
+    execBtn.textContent = '\uc77c\uad04 \ud655\uc815';
+    execBtn.dataset.lots = JSON.stringify(checked);
+    execBtn.onclick = function() { window._execBulkConfirm(JSON.parse(this.dataset.lots)); };
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(execBtn);
+    inner.appendChild(h3);
+    inner.appendChild(lotList);
+    inner.appendChild(label);
+    inner.appendChild(input);
+    inner.appendChild(prog);
+    inner.appendChild(btnRow);
+    ov.appendChild(inner);
+    document.body.appendChild(ov);
+  };
+
+  window._execBulkConfirm = function(lots) {
+    var dateEl = document.getElementById('bulk-confirm-date');
     var inboundDate = dateEl ? dateEl.value : '';
     if (!inboundDate || !/^\d{4}-\d{2}-\d{2}$/.test(inboundDate)) {
       showToast('error', '\ub0a0\uc9dc\ub97c \uc62c\ubc14\ub974\uac8c \uc785\ub825\ud574 \uc8fc\uc138\uc694 (YYYY-MM-DD)'); return;

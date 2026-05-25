@@ -510,7 +510,7 @@
           _sumKg += Number(r.total_kg     || 0);
         });
         var _tf = document.createElement('tfoot');
-        _tf.innerHTML = '<tr style="background:#FFD600;font-weight:800;color:#222;font-size:13px">'
+        _tf.innerHTML = '<tr style="background:#FFD600;font-weight:800;color:#222;font-size:19px">'
           + '<td colspan="4" style="text-align:right;padding:6px 10px">'
           + '합계 ' + rows.length + ' LOT</td>'
           + '<td></td><td></td>'
@@ -684,6 +684,15 @@
         + '</tr>';
       return mainRow + sampleRow;
     }).join('');
+    // v8.6.9 노란 tfoot 합계 (Return)
+    html += '<tfoot>'
+      + '<tr style="background:#FFD600;font-weight:800;color:#222;font-size:19px">'
+      + '<td colspan="6" style="text-align:right;padding:6px 10px">'
+      + '합계 ' + rows.length + ' LOT</td>'
+      + '<td class="mono-cell" style="text-align:right;padding:6px 8px">'
+      + fmtN(sumBal) + ' MT</td>'
+      + '<td colspan="9"></td>'
+      + '</tr></tfoot>';
     html += '</tbody></table></div></section>';
     container.innerHTML = html;
   }
@@ -751,6 +760,27 @@
           '<td class="mono-cell" style="color:var(--accent)">'+escapeHtml(r.to_location||'-')+'</td>' +
           '<td>'+escapeHtml(r.actor||r.moved_by||'system')+'</td></tr>';
       }).join('');
+      // v8.6.9 노란 tfoot 합계 (Move)
+      (function() {
+        var _sumQty = 0;
+        rows.forEach(function(r) {
+          _sumQty += r.qty_mt != null ? Number(r.qty_mt) :
+                     (r.qty_kg != null ? Number(r.qty_kg) / 1000 : 0);
+        });
+        var _moveTbl = document.getElementById('move-table');
+        if (_moveTbl && !_moveTbl.querySelector('tfoot')) {
+          var _tf = document.createElement('tfoot');
+          _tf.innerHTML =
+            '<tr style="background:#FFD600;font-weight:800;color:#222;font-size:19px">'
+            + '<td colspan="4" style="text-align:right;padding:6px 10px">'
+            + '합계 ' + rows.length + '건</td>'
+            + '<td class="mono-cell" style="text-align:right;padding:6px 8px">'
+            + (typeof fmtN === 'function' ? fmtN(_sumQty) : _sumQty.toFixed(3)) + ' MT</td>'
+            + '<td colspan="3"></td>'
+            + '</tr>';
+          _moveTbl.appendChild(_tf);
+        }
+      })();
       document.getElementById('move-table').style.display = '';
     }).catch(function(){
       if (window.getCurrentRoute() !== route) return;

@@ -237,6 +237,39 @@
           '<td class="mono-cell">'+escapeHtml(r.picking_date||'')+'</td>' +
           '</tr>';
       }).join('');
+      // v8.6.9 노란 tfoot 합계
+      (function() {
+        var _sumTb = 0, _sumKg = 0, _sumAv = 0, _sumRv = 0, _sumPk = 0;
+        rows.forEach(function(r) {
+          _sumTb += Number(r.tonbag_count || 0);
+          _sumKg += Number(r.total_kg     || 0);
+          _sumAv += Number(r.tb_available || 0);
+          _sumRv += Number(r.tb_reserved  || 0);
+          _sumPk += Number(r.tb_picked    || 0);
+        });
+        var _tbl = document.getElementById('picked-table');
+        if (_tbl && !_tbl.querySelector('tfoot')) {
+          var _tf = document.createElement('tfoot');
+          _tf.innerHTML =
+            '<tr style="background:#FFD600;font-weight:800;color:#222;font-size:19px">'
+            + '<td colspan="6" style="text-align:right;padding:6px 10px">'
+            + '합계 ' + rows.length + ' LOT</td>'
+            + '<td class="mono-cell" style="text-align:right;padding:6px 8px">'
+            + _sumTb.toLocaleString('ko-KR') + '</td>'
+            + '<td class="mono-cell" style="text-align:right;padding:6px 8px">'
+            + (typeof fmtN === 'function' ? fmtN(_sumKg) : _sumKg.toFixed(0)) + '</td>'
+            + '<td></td>'
+            + '<td class="mono-cell" style="text-align:center;color:#22c55e">'
+            + _sumAv + '</td>'
+            + '<td class="mono-cell" style="text-align:center;color:#3b82f6">'
+            + _sumRv + '</td>'
+            + '<td class="mono-cell" style="text-align:center;color:#f59e0b">'
+            + _sumPk + '</td>'
+            + '<td colspan="5"></td>'
+            + '</tr>';
+          _tbl.appendChild(_tf);
+        }
+      })();
       document.getElementById('picked-table').style.display = '';
     }).catch(function(e){
       if (window.getCurrentRoute() !== route) return;

@@ -77,10 +77,11 @@ html[data-theme="light"] {
   --status-available: #2e7d32;
   --status-return:    #c62828;
   --text: #1a1a1a;
-  --sqm-table-font-size: 14px;
-  --sqm-table-cell-padding-y: 6px;
-  --sqm-table-cell-padding-x: 10px;
-  --sqm-table-line-height: 1.2;
+  --sqm-table-font-size: 13px;
+  --sqm-table-cell-padding-y: 4px;
+  --sqm-table-cell-padding-x: 7px;
+  --sqm-table-line-height: 1.16;
+  --sqm-table-grid-border: rgba(15, 23, 42, 0.13);
   --sqm-table-filter-font-size: 13px;
   --sqm-table-filter-height: 26px;
 }
@@ -139,21 +140,26 @@ html[data-theme="dark"] {
   --status-available: #66bb6a;
   --status-return:    #ef5350;
   --text: #e6e6e6;
-  --sqm-table-font-size: 14px;
-  --sqm-table-cell-padding-y: 6px;
-  --sqm-table-cell-padding-x: 10px;
-  --sqm-table-line-height: 1.2;
+  --sqm-table-font-size: 13px;
+  --sqm-table-cell-padding-y: 4px;
+  --sqm-table-cell-padding-x: 7px;
+  --sqm-table-line-height: 1.16;
+  --sqm-table-grid-border: rgba(148, 163, 184, 0.16);
   --sqm-table-filter-font-size: 13px;
   --sqm-table-filter-height: 26px;
 }
 
 html[data-table-preset="default"] {
-  --sqm-table-font-size: 14px;
+  --sqm-table-font-size: 13px;
+  --sqm-table-cell-padding-y: 4px;
+  --sqm-table-cell-padding-x: 7px;
   --sqm-table-filter-font-size: 13px;
   --sqm-table-filter-height: 26px;
 }
 html[data-table-preset="large"] {
-  --sqm-table-font-size: 15px;
+  --sqm-table-font-size: 14px;
+  --sqm-table-cell-padding-y: 5px;
+  --sqm-table-cell-padding-x: 8px;
   --sqm-table-filter-font-size: 14px;
   --sqm-table-filter-height: 28px;
 }
@@ -1014,19 +1020,23 @@ html[data-table-preset="large"] {
 }
 
 /* ── Data Table (재고 및 확인 스타일) ─────────────────────────────── */
+/* v8.6.9 (2026-05-24): 전역 가시성 개선 — 행 간격 27~33% 축소.
+   !important 사용 이유: 인라인 style="padding:6px 10px" 등 170+곳을 강제 덮어쓰기. */
 .data-table {
   width: 100%; border-collapse: collapse;
   font-size: 14px;
+  line-height: 1.2 !important;
 }
 .data-table th {
   background: var(--table-header);
-  padding: 8px 10px;
+  padding: 3px 8px !important;
   font-size: 14px;
   text-align: center !important;
   font-weight: 700;
   border-bottom: 2px solid var(--panel-border);
   color: var(--fg);
   white-space: nowrap;
+  line-height: 1.25 !important;
 }
 .data-table th .table-th-label,
 .sqm-table th .table-th-label,
@@ -1066,16 +1076,41 @@ html[data-table-preset="large"] {
   outline-offset: 1px;
 }
 .data-table td {
-  padding: 7px 10px;
+  padding: 2px 8px !important;
   font-size: 14px;
   text-align: center !important;
   border-bottom: 1px solid var(--panel-border);
+  line-height: 1.2 !important;
+}
+/* v8.6.9 예외: colspan>=3 메시지 셀 (로딩/빈상태/에러 안내) — 가독성 유지 */
+.data-table td[colspan]:not([colspan="1"]):not([colspan="2"]) {
+  padding: 18px 12px !important;
+  line-height: 1.4 !important;
+  text-align: center !important;
 }
 .data-table td.mono-cell { font-family: 'Consolas','Courier New',monospace; }
 .data-table .cell-left { text-align: left !important; }
 .data-table .cell-right,
 .data-table .cell-num { text-align: right !important; }
 .data-table .cell-center { text-align: center !important; }
+.data-table th.lot-col-header,
+.sqm-table th.lot-col-header,
+.inventory-table th.lot-col-header,
+.data-table th.product-col-header,
+.sqm-table th.product-col-header,
+.inventory-table th.product-col-header {
+  text-align: left !important;
+}
+.data-table td.lot-col-cell,
+.sqm-table td.lot-col-cell,
+.inventory-table td.lot-col-cell,
+.data-table td.product-col-cell,
+.sqm-table td.product-col-cell,
+.inventory-table td.product-col-cell {
+  text-align: left !important;
+  white-space: normal;
+  word-break: keep-all;
+}
 .data-table tr:nth-child(even) td { background: var(--table-row-alt); }
 .data-table tr.total-row td {
   font-weight: 700;
@@ -1605,6 +1640,8 @@ body,
 .inventory-table {
   color: var(--fg);
   background: var(--table-cell-bg);
+  border-collapse: collapse;
+  border-spacing: 0;
 }
 
 .data-table th,
@@ -1614,6 +1651,8 @@ body,
   background: var(--table-header) !important;
   text-align: center !important;
   vertical-align: middle;
+  border-bottom: 1px solid var(--sqm-table-grid-border);
+  border-right: 1px solid var(--sqm-table-grid-border);
 }
 
 .data-table td,
@@ -1623,6 +1662,8 @@ body,
   background: var(--table-cell-bg);
   text-align: center !important;
   vertical-align: middle;
+  border-bottom: 1px solid var(--sqm-table-grid-border);
+  border-right: 1px solid var(--sqm-table-grid-border);
 }
 
 #sqm-modal-content table th,
@@ -1631,6 +1672,21 @@ body,
 .page table td {
   text-align: center !important;
   vertical-align: middle;
+  border-bottom: 1px solid var(--sqm-table-grid-border);
+  border-right: 1px solid var(--sqm-table-grid-border);
+}
+
+.data-table th:last-child,
+.data-table td:last-child,
+.sqm-table th:last-child,
+.sqm-table td:last-child,
+.inventory-table th:last-child,
+.inventory-table td:last-child,
+#sqm-modal-content table th:last-child,
+#sqm-modal-content table td:last-child,
+.page table th:last-child,
+.page table td:last-child {
+  border-right: none;
 }
 
 .data-table .cell-left,

@@ -727,7 +727,8 @@ window.SQM_STATUS_MAP = window.SQM_STATUS_MAP || {
 
   function enhanceDataTables(root) {
     var scope = root && root.querySelectorAll ? root : document;
-    scope.querySelectorAll('table.data-table,table.sqm-table').forEach(function(table) {
+    scope.querySelectorAll('table.data-table,table.sqm-table,table.inventory-table').forEach(function(table) {
+      applyTextColumnAlignment(table);
       if (table.dataset.sqmExcelReady === '1') return;
       table.dataset.sqmExcelReady = '1';
       var parent = table.parentElement;
@@ -749,13 +750,97 @@ window.SQM_STATUS_MAP = window.SQM_STATUS_MAP || {
     });
   }
 
+  function normalizeHeaderText(text) {
+    var raw = String(text || '').replace(/\s+/g, ' ').trim();
+    return {
+      raw: raw,
+      upper: raw.toUpperCase()
+    };
+  }
+
+  function isProductHeaderText(text) {
+    var h = normalizeHeaderText(text);
+    var raw = h.raw;
+    var upper = h.upper;
+    return upper === 'PRODUCT'
+      || upper === 'PRODUCT NAME'
+      || upper === 'PRODUCT_NAME'
+      || raw === '제품'
+      || raw === '제품명'
+      || raw === '품목'
+      || raw === '품목명';
+  }
+
+  function isLotHeaderText(text) {
+    var h = normalizeHeaderText(text);
+    var raw = h.raw;
+    var upper = h.upper;
+    return upper === 'LOT'
+      || upper === 'LOT NO'
+      || upper === 'LOT NO.'
+      || upper === 'LOT NUMBER'
+      || upper === 'LOT_NO'
+      || raw === 'LOT 번호'
+      || raw === '로트'
+      || raw === '로트번호';
+  }
+
+  function forceLeftAlign(cell) {
+    if (!cell || !cell.style) return;
+    cell.style.setProperty('text-align', 'left', 'important');
+  }
+
+  function applyTextColumnAlignment(table) {
+    if (!table || !table.querySelectorAll) return;
+    var headers = Array.prototype.slice.call(table.querySelectorAll('thead th'));
+    if (!headers.length) return;
+    var textIndexes = [];
+    headers.forEach(function(th, idx) {
+      var label = (th.querySelector('.table-th-label') || th).textContent;
+      if (isProductHeaderText(label)) {
+        th.classList.add('product-col-header');
+        forceLeftAlign(th);
+        textIndexes.push({idx: idx, cls: 'product-col-cell'});
+      } else if (isLotHeaderText(label)) {
+        th.classList.add('lot-col-header');
+        forceLeftAlign(th);
+        textIndexes.push({idx: idx, cls: 'lot-col-cell'});
+      }
+    });
+    if (!textIndexes.length) return;
+    table.querySelectorAll('tbody tr').forEach(function(tr) {
+      var cells = Array.prototype.slice.call(tr.children).filter(function(cell) {
+        return /^(TD|TH)$/.test(cell.tagName);
+      });
+      textIndexes.forEach(function(col) {
+        if (cells[col.idx] && cells[col.idx].tagName === 'TD') {
+          cells[col.idx].classList.add(col.cls);
+          forceLeftAlign(cells[col.idx]);
+        }
+      });
+    });
+  }
+
+  function applyProductColumnAlignment(table) {
+    applyTextColumnAlignment(table);
+  }
+
   function initGlobalTableTools() {
     enhanceDataTables(document);
     var observer = new MutationObserver(function(mutations) {
       mutations.forEach(function(m) {
         m.addedNodes.forEach(function(node) {
           if (node.nodeType !== 1) return;
-          if (node.matches && node.matches('table.data-table,table.sqm-table')) {
+          var changedTable = null;
+          if (node.matches && node.matches('table.data-table,table.sqm-table,table.inventory-table')) {
+            changedTable = node;
+          } else if (node.closest) {
+            changedTable = node.closest('table.data-table,table.sqm-table,table.inventory-table');
+          }
+          if (changedTable) {
+            applyTextColumnAlignment(changedTable);
+          }
+          if (node.matches && node.matches('table.data-table,table.sqm-table,table.inventory-table')) {
             enhanceDataTables(node.parentNode || document);
           } else {
             enhanceDataTables(node);
@@ -1097,12 +1182,21 @@ window.SQM_STATUS_MAP = window.SQM_STATUS_MAP || {
     // 상단 Inventory 총계 배지만 유지
     apiGet('/api/dashboard/sidebar-counts').then(function(res){
       var d = (res && res.data) ? res.data : {};
-      // 서브메뉴 배지 숨김 처리
-      ['badge-available','badge-allocation','badge-picked','badge-return'].forEach(function(id){
+      // v8.6.9: 상태별 배지 표시 (톤백 N개 · 샘플 M개)
+      function _badge(id, data) {
         var el = document.getElementById(id);
-        if (el) el.textContent = '';
-      });
-      // 상단 Inventory 버튼 총계는 유지
+        if (!el || !data) return;
+        var txt = '톤백 ' + data.bags + '개';
+        if (data.sample_bags > 0) txt += ' · 샘플 ' + data.sample_bags + '개';
+        el.textContent = txt;
+      }
+      _badge('badge-pending',    d.pending);
+      _badge('badge-available',  d.available);
+      _badge('badge-allocation', d.reserved);
+      _badge('badge-picked',     d.picked);
+      _badge('badge-sold',       d.sold);
+      _badge('badge-return',     d['return']);
+      // 상단 Inventory 버튼 총계 유지
       var tot = document.getElementById('badge-inv-total');
       if (tot && d.total) tot.textContent = d.total.bags + '개 · ' + d.total.mt.toFixed(3) + 'MT';
     }).catch(function(){});

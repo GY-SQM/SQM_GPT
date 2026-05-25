@@ -52,6 +52,11 @@
       '    <button class="btn btn-secondary" onclick="renderPage(\'allocation\')">🔁 새로고침</button>',
       '  </div>',
       '</div>',
+      /* ── 단계 되돌리기 ── */
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 10px;background:var(--panel);border:1px solid var(--panel-border);border-radius:6px;margin-bottom:8px">',
+      '  <span style="font-size:12px;font-weight:600;white-space:nowrap">↩ 단계 되돌리기:</span>',
+      '  <button class="btn" onclick="window.allocRevertStep(\'RESERVED\')" style="font-size:12px">RESERVED → AVAILABLE</button>',
+      '</div>',
       /* ── 로딩 / 빈 상태 ── */
       '<div id="alloc-loading" style="padding:40px;text-align:center;color:var(--text-muted)">⏳ 데이터 로딩 중...</div>',
       '<div class="empty" id="alloc-empty" style="display:none;padding:60px;text-align:center">📭 배정 데이터 없음</div>',
@@ -214,14 +219,14 @@
           '<td class="mono-cell">' + escapeHtml(r.sale_ref || '-') + '</td>' +
           '<td class="mono-cell">' + escapeHtml(r.outbound_date || r.ship_date || '-') + '</td>' +
           '<td>' + escapeHtml(r.warehouse || r.wh || '-') + '</td>' +
-          '<td><span class="tag" style="background:#78350f;color:#fef3c7;font-weight:700">SAMPLE</span></td>' +
+          '<td><span class="tag" style="background:' + pal.bg + ';color:' + pal.fg + ';font-weight:700">' + status + '</span></td>' +
           '</tr>'
         ) : '');
     }).join('');
 
     /* Footer 합계 (v864-2 TreeviewTotalFooter 매칭) */
     tfoot.innerHTML =
-      '<tr style="background:#FFD600;font-weight:800;color:#222">' +
+      '<tr style="background:#FFD600;font-weight:800;color:#222;font-size:19px">' +
       '<td colspan="5" style="text-align:right">합계:</td>' +
       '<td class="mono-cell" style="text-align:right">' + totalMt.toFixed(4) + ' MT</td>' +
       '<td></td>' +
