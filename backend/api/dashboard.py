@@ -507,12 +507,12 @@ def get_alerts():
 @router.get("/sidebar-counts")
 def get_sidebar_counts():
     """
-    사이드바 Inventory 하위 메뉴 배지용 경량 API.
-    inventory_tonbag.status 기준 — 샘플 포함.
+    사이드바 배지용 경량 API (v8.6.9 확장).
+    inventory_tonbag.status 기준 — PENDING/SOLD 포함, 샘플 분리.
 
     Response:
-        available / reserved / picked / return / total
-        각각: { bags: int, mt: float }
+        pending / available / reserved / picked / sold / return / total
+        각각: { bags: int, mt: float, sample_bags: int }
     """
     try:
         db_path = _get_db_path()
@@ -524,28 +524,37 @@ def get_sidebar_counts():
         rows = c.execute("""
             SELECT
                 status,
-                COUNT(*)             AS bags,
-                COALESCE(SUM(weight), 0) / 1000.0 AS mt
+                COUNT(*)                                                      AS bags,
+                COALESCE(SUM(weight), 0) / 1000.0                            AS mt,
+                SUM(CASE WHEN COALESCE(is_sample, 0) = 1 THEN 1 ELSE 0 END) AS sample_bags
             FROM inventory_tonbag
-            WHERE status IN ('AVAILABLE', 'RESERVED', 'PICKED', 'RETURN')
+            WHERE status IN ('PENDING', 'AVAILABLE', 'RESERVED', 'PICKED', 'SOLD', 'RETURN')
             GROUP BY status
         """).fetchall()
         con.close()
 
         result = {
-            "available": {"bags": 0, "mt": 0.0},
-            "reserved":  {"bags": 0, "mt": 0.0},
-            "picked":    {"bags": 0, "mt": 0.0},
-            "return":    {"bags": 0, "mt": 0.0},
+            "pending":   {"bags": 0, "mt": 0.0, "sample_bags": 0},
+            "available": {"bags": 0, "mt": 0.0, "sample_bags": 0},
+            "reserved":  {"bags": 0, "mt": 0.0, "sample_bags": 0},
+            "picked":    {"bags": 0, "mt": 0.0, "sample_bags": 0},
+            "sold":      {"bags": 0, "mt": 0.0, "sample_bags": 0},
+            "return":    {"bags": 0, "mt": 0.0, "sample_bags": 0},
         }
-        for status, bags, mt in rows:
+        for status, bags, mt, sample_bags in rows:
             key = status.lower()
             if key in result:
-                result[key] = {"bags": int(bags), "mt": round(float(mt), 2)}
+                result[key] = {
+                    "bags":        int(bags),
+                    "mt":          round(float(mt), 2),
+                    "sample_bags": int(sample_bags),
+                }
 
-        total_bags = sum(v["bags"] for v in result.values())
-        total_mt   = round(sum(v["mt"]  for v in result.values()), 2)
-        result["total"] = {"bags": total_bags, "mt": total_mt}
+        # total = PENDING 제외 재고 합계 (Available + Reserved + Picked + Return)
+        inv_keys = ["available", "reserved", "picked", "return"]
+        total_bags = sum(result[k]["bags"] for k in inv_keys)
+        total_mt   = round(sum(result[k]["mt"]  for k in inv_keys), 2)
+        result["total"] = {"bags": total_bags, "mt": total_mt, "sample_bags": 0}
         return {"ok": True, "data": result}
     except Exception as exc:
         logger.error("[dashboard/sidebar-counts] 집계 실패: %s", exc, exc_info=True)

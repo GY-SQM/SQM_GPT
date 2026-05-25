@@ -56,6 +56,42 @@ class PickingEngine:
             "first_date": row.get("first_date"),
         }
 
+    def _mark_lot_picked(self, lot_no: str, picked_kg: float, picking_no: str, outbound_id: str) -> None:
+        """선택된 LOT를 RESERVED 단계에서 PICKED 단계로 이동한다."""
+        self.db.execute(
+            """
+            UPDATE allocation_plan
+               SET status = 'PICKED',
+                   executed_at = datetime('now'),
+                   picking_no = COALESCE(NULLIF(?, ''), picking_no),
+                   outbound_id = COALESCE(NULLIF(?, ''), outbound_id)
+             WHERE lot_no = ?
+               AND status = 'RESERVED'
+               AND NOT EXISTS (
+                   SELECT 1 FROM inventory_tonbag
+                    WHERE lot_no = ? AND status = 'RESERVED'
+               )
+            """,
+            (picking_no or "", outbound_id or "", lot_no, lot_no),
+        )
+        self.db.execute(
+            """
+            UPDATE inventory
+               SET current_weight = MAX(0, COALESCE(current_weight, 0) - ?),
+                   picked_weight = COALESCE(picked_weight, 0) + ?,
+                   status = CASE
+                       WHEN EXISTS (
+                           SELECT 1 FROM inventory_tonbag
+                            WHERE lot_no = ? AND status = 'RESERVED'
+                       ) THEN 'RESERVED'
+                       ELSE 'PICKED'
+                   END,
+                   updated_at = datetime('now')
+             WHERE lot_no = ?
+            """,
+            (picked_kg, picked_kg, lot_no, lot_no),
+        )
+
     def process(self, parsed: dict, source_file: str = "") -> dict:
         """
         Picking List 파싱 결과 → picking_table INSERT + tonbag PICKED 전환
@@ -168,6 +204,7 @@ class PickingEngine:
             SELECT id, lot_no, sub_lt, weight, tonbag_uid
             FROM inventory_tonbag
             WHERE lot_no = ? AND status = 'RESERVED'  -- noqa: STATUS_RESERVED
+              AND COALESCE(is_sample, 0) = 0
             ORDER BY sub_lt ASC
             """,
             (lot_no,),
@@ -178,16 +215,25 @@ class PickingEngine:
 
         remaining_kg = qty_kg
         picked_count = 0
+        picked_kg = 0.0
 
         for tb in tonbags:
             if remaining_kg <= 0:
                 break
-            tb_weight = tb.get("weight") or _fallback_weight  # v8.6.1: PDF 감지값 우선
+            tb_weight = tb.get("weight") or TONBAG_WEIGHT_KG
 
-            # [RUBI-PHASE2] 랜덤출고 정책: Picking List 단계에서는 TONBAG 상태를 변경하지 않습니다.
-            # 기존 로직(RESERVED→PICKED)은 운영 혼선을 유발하므로 비활성화합니다.
-            # TONBAG 확정은 출고 스캔(UID) 순간에만 발생합니다.
-            # (picking_table에는 계획/이력만 기록)
+            self.db.execute(
+                """
+                UPDATE inventory_tonbag
+                   SET status = ?,
+                       picked_to = ?,
+                       picked_date = datetime('now'),
+                       outbound_date = COALESCE(NULLIF(?, ''), outbound_date),
+                       updated_at = datetime('now')
+                 WHERE id = ?
+                """,
+                (STATUS_PICKED, customer, plan_loading, tb["id"]),
+            )
             self.db.execute(
                 """
                 INSERT INTO picking_table (
@@ -223,8 +269,11 @@ class PickingEngine:
 
             remaining_kg -= tb_weight
             picked_count += 1
+            picked_kg += float(tb_weight or 0)
 
         remaining_reserved = len(tonbags) - picked_count
+        if picked_count:
+            self._mark_lot_picked(lot_no, picked_kg, picking_no, outbound_id)
         return picked_count, remaining_reserved, False
 
     def _process_sample(
@@ -256,8 +305,19 @@ class PickingEngine:
             return 0
 
         tb = tonbags[0]
-        # [RUBI-PHASE2] 샘플도 Picking 단계에서 TONBAG 상태를 변경하지 않습니다.
-        # 샘플 확정 역시 스캔 순간에만 반영됩니다.
+        sample_weight = float(tb.get("weight") or qty_kg or 0)
+        self.db.execute(
+            """
+            UPDATE inventory_tonbag
+               SET status = ?,
+                   picked_to = ?,
+                   picked_date = datetime('now'),
+                   outbound_date = COALESCE(NULLIF(?, ''), outbound_date),
+                   updated_at = datetime('now')
+             WHERE id = ?
+            """,
+            (STATUS_PICKED, customer, plan_loading, tb["id"]),
+        )
         self.db.execute(
             """
             INSERT INTO picking_table (
@@ -290,6 +350,7 @@ class PickingEngine:
                 "1001 GY logistics",
             ),
         )
+        self._mark_lot_picked(lot_no, sample_weight, picking_no, outbound_id)
         return 1
 
 

@@ -2310,6 +2310,40 @@ class OutboundMixin(InventoryBaseMixin):
                         lot_no, sale_ref, customer, allocation_random_mode,
                         seed_hash, tonbags, selected, reserved_in_lot, now)
 
+                    # [v8.6.9 AUTO-SAMPLE-RESERVE]: 일반 배정 완료 후 해당 LOT 샘플 톤백 자동 RESERVED
+                    # 조건: is_sample_req=False(일반 배정) + 승인대기 아닐 + AVAILABLE 샘플 톤백 존재
+                    if not is_sample_req and not (need_approval and has_workflow_status_col):
+                        try:
+                            _sample_pool = self.db.fetchall(
+                                "SELECT id, sub_lt FROM inventory_tonbag "
+                                "WHERE lot_no=? AND status='AVAILABLE' "
+                                "AND COALESCE(is_sample,0)=1",
+                                (lot_no,)
+                            )
+                            if _sample_pool:
+                                _sample_upd = [
+                                    (STATUS_RESERVED, customer, sale_ref, now,
+                                     (sb.get('id') if isinstance(sb, dict) else sb[0]))
+                                    for sb in _sample_pool
+                                ]
+                                self.db.executemany(
+                                    "UPDATE inventory_tonbag SET "
+                                    "status=?, picked_to=?, sale_ref=?, updated_at=? "
+                                    "WHERE id=?",
+                                    _sample_upd
+                                )
+                                self._recalc_lot_status(lot_no)
+                                logger.info(
+                                    "[AUTO-SAMPLE-RESERVE] %s: 샘플 %d개 AVAILABLE→RESERVED "
+                                    "(customer=%s, sale_ref=%s)",
+                                    lot_no, len(_sample_pool), customer, sale_ref
+                                )
+                        except Exception as _spe:
+                            logger.warning(
+                                "[AUTO-SAMPLE-RESERVE] %s: 샘플 예약 실패(무시): %s",
+                                lot_no, _spe
+                            )
+
                 if strict_mode and strict_errors:
                     raise ValueError(
                         "[STRICT] Allocation 예약 중단: " + " | ".join(strict_errors[:10])

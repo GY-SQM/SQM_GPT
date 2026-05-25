@@ -128,8 +128,49 @@ def get_inventory(
         """
         params = []
         if status:
-            sql += " AND i.status = ?"
-            params.append(status)
+            status_norm = str(status).strip().upper()
+            if status_norm == "AVAILABLE":
+                sql += """
+                    AND COALESCE(i.status, '') = ?
+                    AND NOT EXISTS (
+                        SELECT 1
+                          FROM inventory_tonbag t
+                         WHERE t.lot_no = i.lot_no
+                           AND t.status IN ('RESERVED','PICKED','SOLD','SHIPPED','CONFIRMED','DEPLETED')
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1
+                          FROM allocation_plan ap
+                         WHERE ap.lot_no = i.lot_no
+                           AND (
+                               ap.status IN ('RESERVED','PICKED','SOLD','STAGED','PENDING_APPROVAL')
+                               OR COALESCE(ap.workflow_status, '') IN ('PENDING_APPROVAL','APPROVED')
+                           )
+                    )
+                """
+                params.append("AVAILABLE")
+            elif status_norm == "RESERVED":
+                sql += """
+                    AND (
+                        COALESCE(i.status, '') = ?
+                        OR EXISTS (
+                            SELECT 1
+                              FROM inventory_tonbag t
+                             WHERE t.lot_no = i.lot_no
+                               AND t.status = 'RESERVED'
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                              FROM allocation_plan ap
+                             WHERE ap.lot_no = i.lot_no
+                               AND ap.status = 'RESERVED'
+                        )
+                    )
+                """
+                params.append("RESERVED")
+            else:
+                sql += " AND i.status = ?"
+                params.append(status)
         if product:
             sql += " AND i.product LIKE ?"
             params.append(f"%{product}%")

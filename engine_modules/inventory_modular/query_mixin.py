@@ -62,7 +62,7 @@ class QueryMixin:
                    salar_invoice_no, ship_date, arrival_date, con_return, free_time,
                    customs,
                    stock_date, inbound_date, created_at, updated_at
-            FROM inventory WHERE 1=1
+            FROM inventory i WHERE 1=1
         """
         query_fallback = """
             SELECT id, lot_no, sap_no, bl_no, product, product_code,
@@ -73,22 +73,59 @@ class QueryMixin:
                    salar_invoice_no, ship_date, arrival_date, con_return, free_time,
                    '' AS customs,
                    stock_date, '' AS inbound_date, created_at, updated_at
-            FROM inventory WHERE 1=1
+            FROM inventory i WHERE 1=1
         """
         for query in (query_full, query_fallback):
             try:
                 q = query
                 params = []
                 if status:
-                    q += " AND status = ?"
-                    params.append(status)
+                    status_norm = str(status).strip().upper()
+                    if status_norm == STATUS_AVAILABLE:
+                        q += """
+                            AND COALESCE(i.status, '') = ?
+                            AND NOT EXISTS (
+                                SELECT 1 FROM inventory_tonbag t
+                                WHERE t.lot_no = i.lot_no
+                                  AND t.status IN ('RESERVED','PICKED','SOLD','SHIPPED','CONFIRMED','DEPLETED')
+                            )
+                            AND NOT EXISTS (
+                                SELECT 1 FROM allocation_plan ap
+                                WHERE ap.lot_no = i.lot_no
+                                  AND (
+                                      ap.status IN ('RESERVED','PICKED','SOLD','STAGED','PENDING_APPROVAL')
+                                      OR COALESCE(ap.workflow_status, '') IN ('PENDING_APPROVAL','APPROVED')
+                                  )
+                            )
+                        """
+                        params.append(STATUS_AVAILABLE)
+                    elif status_norm == STATUS_RESERVED:
+                        q += """
+                            AND (
+                                COALESCE(i.status, '') = ?
+                                OR EXISTS (
+                                    SELECT 1 FROM inventory_tonbag t
+                                    WHERE t.lot_no = i.lot_no
+                                      AND t.status = 'RESERVED'
+                                )
+                                OR EXISTS (
+                                    SELECT 1 FROM allocation_plan ap
+                                    WHERE ap.lot_no = i.lot_no
+                                      AND ap.status = 'RESERVED'
+                                )
+                            )
+                        """
+                        params.append(STATUS_RESERVED)
+                    else:
+                        q += " AND i.status = ?"
+                        params.append(status)
                 if product:
-                    q += " AND product LIKE ?"
+                    q += " AND i.product LIKE ?"
                     params.append(f"%{product}%")
                 if lot_no:
-                    q += " AND lot_no LIKE ?"
+                    q += " AND i.lot_no LIKE ?"
                     params.append(f"%{lot_no}%")
-                q += " ORDER BY COALESCE(arrival_date, created_at) DESC, lot_no"
+                q += " ORDER BY COALESCE(i.arrival_date, i.created_at) DESC, i.lot_no"
                 rows = self.db.fetchall(q, tuple(params))
                 from engine_modules.tonbag_compat import normalize_all_rows
                 return normalize_all_rows(_rows_to_dicts(rows))

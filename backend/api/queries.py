@@ -408,13 +408,50 @@ def get_picked_list(limit: int = 500):
     """picking_table — ACTIVE 상태 피킹 건을 lot_no+picking_no 기준 GROUP BY 집계"""
     try:
         con = _db()
-        rows = con.execute("""
+        picking_cols = {str(r[1]) for r in con.execute("PRAGMA table_info(picking_table)").fetchall()}
+        has_tonbag_id = "tonbag_id" in picking_cols
+        if has_tonbag_id:
+            picking_source = """
+                WITH active_picking AS (
+                    SELECT p.*
+                      FROM picking_table p
+                      JOIN (
+                          SELECT tonbag_id, MAX(id) AS id
+                            FROM picking_table
+                           WHERE status = 'ACTIVE'
+                             AND tonbag_id IS NOT NULL
+                           GROUP BY tonbag_id
+                      ) latest
+                        ON latest.id = p.id
+                )
+            """
+            picking_from = """
+                FROM active_picking p
+                JOIN inventory_tonbag pt
+                  ON pt.id = p.tonbag_id
+                 AND pt.status = 'PICKED'
+            """
+            tonbag_count_expr = "COUNT(DISTINCT pt.id)"
+            total_kg_expr = "SUM(COALESCE(pt.weight, p.qty_kg, 0))"
+        else:
+            picking_source = ""
+            picking_from = """
+                FROM picking_table p
+                JOIN inventory_tonbag pt
+                  ON pt.lot_no = p.lot_no
+                 AND pt.status = 'PICKED'
+            """
+            tonbag_count_expr = "COUNT(*)"
+            total_kg_expr = "SUM(COALESCE(p.qty_kg, pt.weight, 0))"
+
+        rows = con.execute(f"""
+            {picking_source}
             SELECT
                 p.lot_no,
                 p.customer,
                 p.picking_no,
-                COUNT(*)                       AS tonbag_count,
-                SUM(COALESCE(p.qty_kg, 0))     AS total_kg,
+                {tonbag_count_expr}            AS tonbag_count,
+                {total_kg_expr}                AS total_kg,
                 MIN(p.picking_date)            AS picking_date,
                 i.product,
                 i.mxbg_pallet,
@@ -430,10 +467,10 @@ def get_picked_list(limit: int = 500):
                 ROUND((SELECT COALESCE(SUM(t.weight), 0) FROM inventory_tonbag t
                  WHERE t.lot_no = p.lot_no AND t.status = 'AVAILABLE' AND COALESCE(t.is_sample, 0) = 0) / 1000.0, 3) AS avail_mt,
                 ROUND((SELECT COALESCE(SUM(t.weight), 0) FROM inventory_tonbag t
-                 WHERE t.lot_no = p.lot_no AND t.status = 'RESERVED' AND COALESCE(t.is_sample, 0) = 0) / 1000.0, 3) AS reserved_mt,
+                WHERE t.lot_no = p.lot_no AND t.status = 'RESERVED' AND COALESCE(t.is_sample, 0) = 0) / 1000.0, 3) AS reserved_mt,
                 ROUND((SELECT COALESCE(SUM(t.weight), 0) FROM inventory_tonbag t
                  WHERE t.lot_no = p.lot_no AND t.status = 'PICKED' AND COALESCE(t.is_sample, 0) = 0) / 1000.0, 3) AS picked_mt
-            FROM picking_table p
+            {picking_from}
             LEFT JOIN inventory i ON i.lot_no = p.lot_no
             WHERE p.status = 'ACTIVE'
             GROUP BY p.lot_no, p.picking_no, i.product, i.mxbg_pallet
@@ -565,8 +602,8 @@ def get_allocation_summary():
     """allocation_plan GROUP BY lot_no — LOT별 요약 (v864.2 동일 2단 구조)"""
     try:
         con = _db()
-        # v9.3 [ALLOC-SUMMARY-JOIN]: inventory JOIN → SAP NO/PRODUCT/WH 채움
-        #         status 필터 제거 → RESERVED/PICKED/SOLD 모두 반환
+        # Allocation 화면은 현재 배정 단계만 표시한다.
+        # PICKED/SOLD로 넘어간 LOT은 Picked/Outbound 화면에서만 보이게 한다.
         rows = con.execute("""
             SELECT ap.lot_no,
                    ap.customer,
@@ -602,7 +639,7 @@ def get_allocation_summary():
                     WHERE t.lot_no = ap.lot_no AND COALESCE(t.is_sample, 0) = 1) / 1000.0, 4) AS sample_mt
             FROM allocation_plan ap
             LEFT JOIN inventory i ON ap.lot_no = i.lot_no
-            WHERE ap.status NOT IN ('CANCELLED')
+            WHERE ap.status = 'RESERVED'
             GROUP BY ap.lot_no, COALESCE(date(ap.outbound_date), '0000-00-00'),
                      i.sap_no, i.product, i.warehouse, i.mxbg_pallet
             ORDER BY ap.status, ap.lot_no, plan_date

@@ -1138,3 +1138,183 @@ def proof_docs_download(path: str = ""):
     if not abs_path.exists() or not abs_path.is_file():
         raise HTTPException(404, "파일 없음")
     return FileResponse(path=str(abs_path), filename=abs_path.name, media_type="application/octet-stream")
+
+
+# ════════════════════════════════════════════════════════════════════
+# v8.6.9 (2026-05-24): 출고 바코드 스캔 → SOLD 확정
+# 현장 직원이 출고 시점에 톤백 바코드를 스캔한 결과 Excel 업로드 →
+# 매칭된 톤백을 PICKED → SOLD 전환 + 실제 위치 반영.
+# 사용자 정책: "이 파일이 업로드되면 비로소 SOLD 확정"
+# ════════════════════════════════════════════════════════════════════
+@router.post(
+    "/barcode-confirm-sold",
+    summary="📦 바코드 스캔 → SOLD 확정 (출고 최종 단계)",
+)
+async def barcode_confirm_sold(file: UploadFile = File(...), dry_run: bool = True):
+    """현장 바코드 스캔 Excel → PICKED 톤백을 SOLD 로 확정.
+
+    Args:
+        file: bar_code.xlsx (11컬럼: SAP/BL/Container/품목/UID/SubLT/번호/중량/상태/실제위치/셀위치)
+        dry_run: True(기본)=미리보기만, False=실제 DB 반영
+
+    Returns:
+        {
+            ok: bool,
+            dry_run: bool,
+            summary: {total, match, mismatch_status, not_found, sample_count, applied},
+            preview: {matched: [], mismatch_status: [], not_found: []},  # 각 최대 50건
+            warnings: []
+        }
+    """
+    import sqlite3
+
+    if not file.filename:
+        raise HTTPException(400, "파일명 없음")
+    if not file.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(400, f"Excel 파일만 지원. 받은 파일: {file.filename}")
+
+    try:
+        from backend.api import engine, ENGINE_AVAILABLE
+    except Exception as e:
+        raise HTTPException(500, f"엔진 로드 실패: {e}")
+    if not ENGINE_AVAILABLE or engine is None:
+        raise HTTPException(500, "엔진 사용 불가")
+
+    try:
+        from features.parsers.barcode_sold_parser import parse_barcode_sold_excel
+    except ImportError as e:
+        raise HTTPException(500, f"barcode_sold_parser import 실패: {e}")
+
+    tmp_path = None
+    try:
+        content = await file.read()
+        if not content:
+            raise HTTPException(400, "빈 파일")
+        ext = os.path.splitext(file.filename)[1].lower()
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+        logger.info(f"[barcode-confirm-sold] 수신: {file.filename} ({len(content)} bytes, dry_run={dry_run})")
+
+        doc = parse_barcode_sold_excel(tmp_path)
+        if not doc.get("parse_ok"):
+            return {
+                "ok": False,
+                "dry_run": dry_run,
+                "summary": {"total": 0, "match": 0, "mismatch_status": 0, "not_found": 0, "sample_count": 0, "applied": 0},
+                "preview": {"matched": [], "mismatch_status": [], "not_found": []},
+                "warnings": doc.get("warnings", []),
+                "error": "파싱 실패",
+            }
+
+        items = doc.get("items", [])
+        matched: List[Dict[str, Any]] = []
+        mismatch_status: List[Dict[str, Any]] = []
+        not_found: List[Dict[str, Any]] = []
+
+        # DB 직접 조회/업데이트 (engine 의존성 최소화)
+        db_path = getattr(engine, "db_path", None) or os.path.join(BASE_DIR, "data", "db", "sqm_inventory.db")
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            for it in items:
+                uid = it.get("tonbag_uid", "")
+                # 1순위: tonbag_uid 정확 매칭
+                row = conn.execute(
+                    "SELECT id, status, location, lot_no, sub_lt FROM inventory_tonbag WHERE tonbag_uid = ? LIMIT 1",
+                    (uid,),
+                ).fetchone()
+                # 2순위: lot_no + sub_lt 매칭 (UID 컬럼이 비어있는 레거시 데이터 대응)
+                if row is None and it.get("lot_no") and it.get("sub_lt") is not None:
+                    row = conn.execute(
+                        "SELECT id, status, location, lot_no, sub_lt FROM inventory_tonbag "
+                        "WHERE lot_no = ? AND sub_lt = ? LIMIT 1",
+                        (it["lot_no"], it["sub_lt"]),
+                    ).fetchone()
+
+                if row is None:
+                    not_found.append({
+                        "tonbag_uid": uid, "lot_no": it.get("lot_no"),
+                        "sub_lt": it.get("sub_lt"), "actual_location": it.get("actual_location"),
+                    })
+                    continue
+
+                cur_status = (row["status"] or "").upper()
+                if cur_status != "PICKED":
+                    mismatch_status.append({
+                        "tonbag_uid": uid, "tonbag_id": row["id"],
+                        "current_status": cur_status, "expected": "PICKED",
+                        "actual_location": it.get("actual_location"),
+                    })
+                    continue
+
+                matched.append({
+                    "tonbag_uid": uid, "tonbag_id": row["id"],
+                    "current_location": row["location"], "new_location": it.get("actual_location"),
+                    "location_changed": (row["location"] or "") != (it.get("actual_location") or ""),
+                })
+
+            # 실제 적용
+            applied = 0
+            if not dry_run and matched:
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                today = datetime.now().strftime("%Y-%m-%d")
+                for m in matched:
+                    conn.execute(
+                        """
+                        UPDATE inventory_tonbag
+                        SET status = 'SOLD',
+                            location = COALESCE(?, location),
+                            location_updated_at = ?,
+                            outbound_date = COALESCE(outbound_date, ?),
+                            updated_at = ?
+                        WHERE id = ? AND status = 'PICKED'
+                        """,
+                        (m["new_location"] or None, now, today, now, m["tonbag_id"]),
+                    )
+                    applied += conn.total_changes  # 누적이라 정확치 않음 — 아래서 재계산
+                # 실제 적용 건수 재계산
+                applied = conn.execute(
+                    "SELECT COUNT(*) FROM inventory_tonbag WHERE id IN ({}) AND status = 'SOLD'".format(
+                        ",".join("?" * len(matched))
+                    ),
+                    [m["tonbag_id"] for m in matched],
+                ).fetchone()[0]
+                conn.commit()
+                logger.info(f"[barcode-confirm-sold] 반영 완료: {applied}건 ({file.filename})")
+
+            sample_count = sum(1 for it in items if (it.get("weight_kg") or 0) < 10)
+
+            return {
+                "ok": True,
+                "dry_run": dry_run,
+                "summary": {
+                    "total": len(items),
+                    "match": len(matched),
+                    "mismatch_status": len(mismatch_status),
+                    "not_found": len(not_found),
+                    "sample_count": sample_count,
+                    "applied": applied if not dry_run else 0,
+                },
+                "preview": {
+                    "matched": matched[:50],
+                    "mismatch_status": mismatch_status[:50],
+                    "not_found": not_found[:50],
+                },
+                "warnings": doc.get("warnings", []),
+                "filename": file.filename,
+            }
+        finally:
+            conn.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("[barcode-confirm-sold] 처리 실패")
+        raise HTTPException(500, f"처리 실패: {e}")
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
