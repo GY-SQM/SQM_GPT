@@ -117,11 +117,11 @@
         </div>
       </div>
       <div class="submenu-parent" tabindex="0">
-        <button class="submenu-parent-btn" type="button">🔄 반품</button>
+        <button class="submenu-parent-btn" type="button">🔄 Return</button>
         <div class="submenu-dropdown">
-          <button data-action="onReturnDialog" title="불량/오배송 등의 사유로 반품된 제품을 재고에 입고 처리합니다">🔄 반품 (재입고)</button>
-          <button data-action="onReturnInboundUpload" title="Excel 파일로 반품 입고 내역을 일괄 등록합니다">📂 반품 입고 (Excel)</button>
-          <button data-action="onReturnStatistics" title="반품 사유별 건수·중량 및 월별 추이를 조회합니다">📊 반품 사유 통계</button>
+          <button data-action="onReturnDialog" title="불량/오배송 등의 사유로 Return 제품을 재고에 입고 처리합니다">🔄 Return (재입고)</button>
+          <button data-action="onReturnInboundUpload" title="Excel 파일로 Return 입고 내역을 일괄 등록합니다">📂 Return 입고 (Excel)</button>
+          <button data-action="onReturnStatistics" title="Return 사유별 건수·중량 및 월별 추이를 조회합니다">📊 Return 사유 통계</button>
         </div>
       </div>
       <div class="submenu-parent" tabindex="0">
@@ -171,10 +171,10 @@
         <div class="submenu-dropdown">
           <button data-action="onPickingListUpload" title="PDF 피킹 리스트를 업로드하여 출고를 처리합니다">📋 Picking List 업로드 (PDF)</button>
           <button data-action="onPickingListExcelUpload" title="Excel(.xlsx) 피킹 리스트를 업로드하여 출고를 처리합니다 — picking_excel_parser 형식과 동일">📋 Picking List 업로드 (Excel)</button>
-          <button onclick="window.showBarcodeSoldConfirmModal && window.showBarcodeSoldConfirmModal()" title="현장 바코드 스캔 결과 업로드 → PICKED 톤백을 SOLD 확정. 실제 위치도 함께 반영. ⚠️ 취소 불가">📦 바코드 스캔 → SOLD 확정 ⚠️</button>
         </div>
       </div>
-      <button class="tool-btn" data-action="onBarcodeScanUpload" title="바코드 스캔 데이터를 업로드하여 출고를 처리합니다">📷 바코드 스캔 업로드</button>
+      <button class="tool-btn" onclick="window.showBarcodeSoldConfirmModal && window.showBarcodeSoldConfirmModal()" title="현장 바코드 스캔 결과 업로드 → 위치 확정 + 출고(SOLD) 동시 이행. AVAILABLE/RESERVED/PICKED 어떤 상태든 SOLD로 전환. ⚠️ 취소 불가">📦 바코드 스캔 → SOLD 확정 ⚠️</button>
+      <button class="tool-btn" onclick="window.showPickingSampleSoldModal && window.showPickingSampleSoldModal()" title="피킹리스트 PDF/Excel에 명시된 샘플(1KG) 행만 추출하여 SOLD 처리. 본품은 영향 없음 — 본품은 바코드 메뉴에서. ⚠️ 취소 불가">🧪 피킹리스트 기반 샘플 SOLD ⚠️</button>
 
       <div class="submenu-parent" tabindex="0">
         <button class="submenu-parent-btn" type="button">📊 조회/관리</button>
@@ -215,21 +215,10 @@
   <!-- ══ ⑤ 보고서 ══ -->
   <div class="menu-btn" data-menu="보고서" tabindex="0" role="menuitem">📝 <span>보고서</span> <span class="caret">▼</span>
     <div class="menu-dropdown">
-      <div class="submenu-parent" tabindex="0">
-        <button class="submenu-parent-btn" type="button">📊 Sales Order</button>
-        <div class="submenu-dropdown">
-          <button data-action="onSalesOrderUpload" title="Sales Order Excel 파일을 업로드합니다">📊 Sales Order 업로드</button>
-        </div>
-      </div>
-      <div class="submenu-parent" tabindex="0">
-        <button class="submenu-parent-btn" type="button">📄 송장/DN</button>
-        <div class="submenu-dropdown">
-          <button data-action="onInvoiceGenerate" title="거래명세서를 자동 생성합니다">📄 거래명세서 생성</button>
-          <button data-action="onDetailOfOutbound" title="Detail of Sold 보고서를 생성합니다">📦 Detail of Sold</button>
-          <button data-action="onSalesOrderDN" title="Sales Order 기반 DN(Delivery Note)을 생성합니다">📋 Sales Order DN</button>
-          <button data-action="onDnCrossCheck" title="DN과 실제 출고 데이터를 교차 검증합니다">🔍 DN 교차검증</button>
-        </div>
-      </div>
+      <button data-action="onOutboundReport" title="Outbound Report 템플릿을 선택하거나 새 양식을 추가하고 Excel 보고서를 생성합니다">📤 Outbound Report</button>
+      <button data-action="onExportWorkReport" title="수출 작업 리포트 템플릿을 선택하거나 새 양식을 추가하고 Excel 보고서를 생성합니다">🚢 수출 작업 리포트</button>
+      <button data-action="onStorageConfirmationReport" title="Storage Confirmation 템플릿을 선택하거나 새 양식을 추가하고 Excel 보고서를 생성합니다">🏷️ Storage Confirmation</button>
+      <button data-action="onSoldInventoryReport" title="SOLD Inventory Report 템플릿을 선택하거나 새 양식을 추가하고 Excel 보고서를 생성합니다">📦 SOLD Inventory Report</button>
       <div class="submenu-parent" tabindex="0">
         <button class="submenu-parent-btn" type="button">📂 커스텀</button>
         <div class="submenu-dropdown">
@@ -324,7 +313,7 @@
 <div class="action-toolbar" id="toolbar">
   <button class="tool-btn tool-pdf" data-action="tb-pdf-inbound" title="원스톱 PDF 입고 — BL/PL/Invoice/D/O 한 번에 처리 (단축키: Ctrl+I)">📄 PDF 입고</button>
   <button class="tool-btn" data-action="tb-quick-outbound" title="즉시 출고 처리 (단축키: Ctrl+O)">🚀 즉시 출고</button>
-  <button class="tool-btn" data-action="tb-return" title="반품 입고 처리">🔄 반품</button>
+  <button class="tool-btn" data-action="tb-return" title="Return 입고 처리">🔄 Return</button>
   <button class="tool-btn" data-action="tb-inventory" title="재고 조회 탭으로 이동">📋 재고 조회</button>
   <button class="tool-btn" data-action="tb-integrity" title="데이터 정합성 검사 실행">✅ 정합성</button>
   <button class="tool-btn" data-action="tb-backup" title="DB 백업 생성 (단축키: Ctrl+B)">💾 백업</button>
@@ -367,7 +356,7 @@
           <div class="kpi-split"><span class="kpi-tonbag" id="kpi-inbound-tonbag">톤백 -- MT</span><span class="kpi-sample" id="kpi-inbound-sample">샘플 -- MT</span></div>
         </div>
         <div class="kpi-card" id="kpi-outbound-today">
-          <div class="kpi-icon">📤</div><div class="kpi-label">오늘 출고</div>
+          <div class="kpi-icon">📤</div><div class="kpi-label">오늘 SOLD</div>
           <div class="kpi-split"><span class="kpi-tonbag" id="kpi-outbound-tonbag">톤백 -- MT</span><span class="kpi-sample" id="kpi-outbound-sample">샘플 -- MT</span></div>
         </div>
         <div class="kpi-card" id="kpi-current-stock">
@@ -389,12 +378,12 @@
   <div id="alerts-content" class="alerts-content">🔔 알림 로딩 중...</div>
 </div>
 
-  <script src="js/sqm-core.js?v=20260518kpi1"></script>
+  <script src="js/sqm-core.js?v=20260525sold1"></script>
     <script src="js/sqm-page-summary.js?v=20260524c"></script>
-    <script src="js/sqm-inventory.js?v=20260517a"></script>
-    <script src="js/sqm-allocation.js?v=20260517b"></script>
-    <script src="js/sqm-picked.js?v=20260517b"></script>
-    <script src="js/sqm-logistics.js?v=20260517b"></script>
+    <script src="js/sqm-inventory.js?v=20260525search"></script>
+    <script src="js/sqm-allocation.js?v=20260525search"></script>
+    <script src="js/sqm-picked.js?v=20260525search"></script>
+    <script src="js/sqm-logistics.js?v=20260525toolbar8"></script>
     <script src="js/sqm-tonbag.js?v=20260511f"></script>
     <script src="js/sqm-onestop-inbound.js?v=20260514b"></script>
   <script src="js/onestop_pallet_tab.js?v=20260514b"></script>
@@ -413,10 +402,11 @@
     <script src="js/sqm-util-toast.js?v=20260523a"></script>
     <script src="js/sqm-util-modal.js?v=20260523a"></script>
     <script src="js/sqm-inline.js?v=20260518kpi1"></script>
-    <script src="js/sqm-upload-modals.js?v=20260525a"></script>
+    <script src="js/sqm-upload-modals.js?v=20260525d"></script>
     <script src="js/sqm-aux-modals.js?v=20260517a"></script>
     <script src="js/sqm-tools-modals.js?v=20260517a"></script>
     <script src="js/sqm-product-modals.js?v=20260517a"></script>
+    <script src="js/sqm-status-revert.js?v=20260525c"></script>
 
 
 <!-- ══ 🤖 AI 선사 템플릿 자동 생성 모달 ══ -->
@@ -538,20 +528,4 @@
     <textarea id="adjustTextInput" rows="4" style="width:100%;background:#2c3e50;color:#ecf0f1;
       border:1px solid #34495e;border-radius:4px;padding:10px;font-size:14px;resize:vertical;"
       placeholder="예) 1126012309 LOT 2포대 파손됐어&#10;1126012310이랑 1126012311은 정상, 50포대 확인됨"></textarea>
-    <div style="margin:12px 0;display:flex;gap:8px">
-      <button onclick="parseAdjustRequest()" style="background:#2980b9;color:#fff;border:none;
-        padding:8px 18px;border-radius:4px;cursor:pointer;font-size:13px">🔍 파싱 확인</button>
-      <button id="adjustExecuteBtn" onclick="executeAdjustment()" style="display:none;background:#e74c3c;
-        color:#fff;border:none;padding:8px 18px;border-radius:4px;cursor:pointer;font-size:13px">
-        ⚡ 조정 실행 (DB+엑셀 수정)</button>
-      <button onclick="document.getElementById('inventoryAdjustModal').style.display='none'"
-        style="background:#7f8c8d;color:#fff;border:none;padding:8px 18px;border-radius:4px;cursor:pointer;font-size:13px">취소</button>
-    </div>
-    <!-- v8.6.9 복구: 파싱 결과 표시 영역 (sqm-inline.js 가 참조) -->
-    <div id="adjustParseResult" style="margin-top:12px;color:#ecf0f1;font-size:13px;line-height:1.6"></div>
-  </div>
-</div>
-<!-- ══ /재고 수정 모달 ══ -->
-
-</body>
-</html>
+    <div style="marg

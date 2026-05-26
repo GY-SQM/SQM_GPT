@@ -302,6 +302,16 @@ async def picking_list_pdf(file: UploadFile = File(...)):
 
         # 2. DB 반영
         result = apply_picking_list_to_db(engine, doc, tmp_path)
+        try:
+            from backend.api.sales_order_validation import validate_picking_doc
+            allocation_validation = validate_picking_doc(doc)
+        except Exception as ve:
+            logger.warning("[picking-list-pdf] allocation validation failed: %s", ve)
+            allocation_validation = {
+                "level": "warning",
+                "issues": [{"severity": "warning", "message": f"Allocation 검증 실패: {ve}"}],
+                "context": {},
+            }
 
         if result.get("success"):
             applied = int(result.get("applied", 0) or result.get("picked", 0) or 0)
@@ -317,6 +327,7 @@ async def picking_list_pdf(file: UploadFile = File(...)):
                     "applied": applied,
                     "warnings": doc.get("warnings", []),
                     "details": result.get("details", [])[:30],
+                    "allocation_validation": allocation_validation,
                 },
                 "message": f"Picking List 반영 완료 ({applied}건)",
             }
@@ -400,6 +411,16 @@ async def picking_import_excel(file: UploadFile = File(...)):
             }
 
         result = apply_picking_list_to_db(engine, doc, tmp_path)
+        try:
+            from backend.api.sales_order_validation import validate_picking_doc
+            allocation_validation = validate_picking_doc(doc)
+        except Exception as ve:
+            logger.warning("[picking-import-excel] allocation validation failed: %s", ve)
+            allocation_validation = {
+                "level": "warning",
+                "issues": [{"severity": "warning", "message": f"Allocation 검증 실패: {ve}"}],
+                "context": {},
+            }
 
         if result.get("success"):
             applied = int(result.get("applied", 0) or result.get("picked", 0) or 0)
@@ -415,6 +436,7 @@ async def picking_import_excel(file: UploadFile = File(...)):
                     "applied": applied,
                     "warnings": doc.get("warnings", []),
                     "details": result.get("details", [])[:30],
+                    "allocation_validation": allocation_validation,
                 },
                 "message": f"Picking List 반영 완료 ({applied}건)",
             }
@@ -1167,6 +1189,7 @@ async def barcode_confirm_sold(file: UploadFile = File(...), dry_run: bool = Tru
         }
     """
     import sqlite3
+    from time import perf_counter
 
     if not file.filename:
         raise HTTPException(400, "파일명 없음")
@@ -1196,7 +1219,9 @@ async def barcode_confirm_sold(file: UploadFile = File(...), dry_run: bool = Tru
             tmp_path = tmp.name
         logger.info(f"[barcode-confirm-sold] 수신: {file.filename} ({len(content)} bytes, dry_run={dry_run})")
 
+        t_parse_start = perf_counter()
         doc = parse_barcode_sold_excel(tmp_path)
+        parse_sec = perf_counter() - t_parse_start
         if not doc.get("parse_ok"):
             return {
                 "ok": False,
@@ -1217,20 +1242,75 @@ async def barcode_confirm_sold(file: UploadFile = File(...), dry_run: bool = Tru
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         try:
+            t_match_start = perf_counter()
+            def _chunks(seq, size=900):
+                for i in range(0, len(seq), size):
+                    yield seq[i:i + size]
+
+            uids = sorted({str(it.get("tonbag_uid") or "").strip() for it in items if it.get("tonbag_uid")})
+            rows_by_uid: Dict[str, sqlite3.Row] = {}
+            for chunk in _chunks(uids):
+                placeholders = ",".join("?" * len(chunk))
+                for row in conn.execute(
+                    f"SELECT id, tonbag_uid, status, location, lot_no, sub_lt, sale_ref, picked_to, pick_ref, picking_id, weight, is_sample, bl_no, sap_no, inbound_date FROM inventory_tonbag WHERE tonbag_uid IN ({placeholders})",
+                    chunk,
+                ).fetchall():
+                    rows_by_uid[str(row["tonbag_uid"] or "").strip()] = row
+
+            fallback_items = [
+                it for it in items
+                if str(it.get("tonbag_uid") or "").strip() not in rows_by_uid
+                and it.get("lot_no")
+                and it.get("sub_lt") is not None
+            ]
+            lot_sub_keys = {
+                (str(it.get("lot_no") or "").strip(), int(it.get("sub_lt")))
+                for it in fallback_items
+                if str(it.get("lot_no") or "").strip()
+            }
+            rows_by_lot_sub: Dict[tuple[str, int], sqlite3.Row] = {}
+            for lot_chunk in _chunks(sorted({k[0] for k in lot_sub_keys})):
+                placeholders = ",".join("?" * len(lot_chunk))
+                for row in conn.execute(
+                    f"SELECT id, tonbag_uid, status, location, lot_no, sub_lt, sale_ref, picked_to, pick_ref, picking_id, weight, is_sample, bl_no, sap_no, inbound_date FROM inventory_tonbag WHERE lot_no IN ({placeholders})",
+                    lot_chunk,
+                ).fetchall():
+                    try:
+                        key = (str(row["lot_no"] or "").strip(), int(row["sub_lt"]))
+                    except Exception:
+                        continue
+                    if key in lot_sub_keys:
+                        rows_by_lot_sub[key] = row
+
+            # v8.6.9 추가: sold_table에 이미 등록된 tonbag_id 미리 조회 (진짜 중복 판정용)
+            all_candidate_ids = []
             for it in items:
-                uid = it.get("tonbag_uid", "")
-                # 1순위: tonbag_uid 정확 매칭
-                row = conn.execute(
-                    "SELECT id, status, location, lot_no, sub_lt FROM inventory_tonbag WHERE tonbag_uid = ? LIMIT 1",
-                    (uid,),
-                ).fetchone()
-                # 2순위: lot_no + sub_lt 매칭 (UID 컬럼이 비어있는 레거시 데이터 대응)
+                uid = str(it.get("tonbag_uid") or "").strip()
+                _row = rows_by_uid.get(uid)
+                if _row is None and it.get("lot_no") and it.get("sub_lt") is not None:
+                    try:
+                        _row = rows_by_lot_sub.get((str(it["lot_no"]).strip(), int(it["sub_lt"])))
+                    except Exception:
+                        _row = None
+                if _row is not None:
+                    all_candidate_ids.append(_row["id"])
+            already_in_sold_table: set = set()
+            for chunk in _chunks(all_candidate_ids):
+                placeholders = ",".join("?" * len(chunk))
+                for row in conn.execute(
+                    f"SELECT DISTINCT tonbag_id FROM sold_table WHERE tonbag_id IN ({placeholders})",
+                    chunk,
+                ).fetchall():
+                    already_in_sold_table.add(row[0])
+
+            for it in items:
+                uid = str(it.get("tonbag_uid") or "").strip()
+                row = rows_by_uid.get(uid)
                 if row is None and it.get("lot_no") and it.get("sub_lt") is not None:
-                    row = conn.execute(
-                        "SELECT id, status, location, lot_no, sub_lt FROM inventory_tonbag "
-                        "WHERE lot_no = ? AND sub_lt = ? LIMIT 1",
-                        (it["lot_no"], it["sub_lt"]),
-                    ).fetchone()
+                    try:
+                        row = rows_by_lot_sub.get((str(it["lot_no"]).strip(), int(it["sub_lt"])))
+                    except Exception:
+                        row = None
 
                 if row is None:
                     not_found.append({
@@ -1240,47 +1320,111 @@ async def barcode_confirm_sold(file: UploadFile = File(...), dry_run: bool = Tru
                     continue
 
                 cur_status = (row["status"] or "").upper()
-                if cur_status != "PICKED":
+                in_sold_table = row["id"] in already_in_sold_table
+
+                # v8.6.9 fix: 현장 바코드 스캔 = 위치 확정 + 출고 동시 이행 워크플로우
+                # 진짜 중복 = inventory_tonbag.status='SOLD' AND sold_table 에도 행 존재
+                # (둘 다 SOLD 인 경우만 스킵, 한쪽만 SOLD면 sold_table에 INSERT 보충)
+                if cur_status == "SOLD" and in_sold_table:
                     mismatch_status.append({
                         "tonbag_uid": uid, "tonbag_id": row["id"],
-                        "current_status": cur_status, "expected": "PICKED",
+                        "current_status": cur_status, "expected": "≠SOLD",
                         "actual_location": it.get("actual_location"),
+                        "note": "이미 SOLD + sold_table 등록됨 — 중복 스킵",
                     })
                     continue
 
                 matched.append({
-                    "tonbag_uid": uid, "tonbag_id": row["id"],
-                    "current_location": row["location"], "new_location": it.get("actual_location"),
+                    "tonbag_uid": uid,
+                    "tonbag_id": row["id"],
+                    "previous_status": cur_status,
+                    "current_location": row["location"],
+                    "new_location": it.get("actual_location"),
                     "location_changed": (row["location"] or "") != (it.get("actual_location") or ""),
+                    # sold_table INSERT 용 데이터 (inventory_tonbag + bar_code.xlsx item 병합)
+                    "_db_lot_no":    row["lot_no"],
+                    "_db_sub_lt":    row["sub_lt"],
+                    "_db_sale_ref":  row["sale_ref"] if "sale_ref" in row.keys() else None,
+                    "_db_picked_to": row["picked_to"] if "picked_to" in row.keys() else None,
+                    "_db_pick_ref":  row["pick_ref"] if "pick_ref" in row.keys() else None,
+                    "_db_picking_id":row["picking_id"] if "picking_id" in row.keys() else None,
+                    "_db_weight":    row["weight"] if "weight" in row.keys() else None,
+                    "_db_is_sample": row["is_sample"] if "is_sample" in row.keys() else 0,
+                    "_db_bl_no":     row["bl_no"] if "bl_no" in row.keys() else None,
+                    "_db_sap_no":    row["sap_no"] if "sap_no" in row.keys() else None,
+                    "_needs_inventory_update": cur_status != "SOLD",
+                    "_needs_sold_insert":      not in_sold_table,
                 })
+            match_sec = perf_counter() - t_match_start
 
             # 실제 적용
             applied = 0
+            sold_inserted = 0
+            apply_sec = 0.0
             if not dry_run and matched:
+                t_apply_start = perf_counter()
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 today = datetime.now().strftime("%Y-%m-%d")
                 for m in matched:
-                    conn.execute(
-                        """
-                        UPDATE inventory_tonbag
-                        SET status = 'SOLD',
-                            location = COALESCE(?, location),
-                            location_updated_at = ?,
-                            outbound_date = COALESCE(outbound_date, ?),
-                            updated_at = ?
-                        WHERE id = ? AND status = 'PICKED'
-                        """,
-                        (m["new_location"] or None, now, today, now, m["tonbag_id"]),
-                    )
-                    applied += conn.total_changes  # 누적이라 정확치 않음 — 아래서 재계산
-                # 실제 적용 건수 재계산
+                    # (a) inventory_tonbag UPDATE (이미 SOLD면 0 rows affected)
+                    if m.get("_needs_inventory_update"):
+                        conn.execute(
+                            """
+                            UPDATE inventory_tonbag
+                            SET status = 'SOLD',
+                                location = COALESCE(?, location),
+                                location_updated_at = ?,
+                                outbound_date = COALESCE(outbound_date, ?),
+                                updated_at = ?
+                            WHERE id = ? AND status != 'SOLD'
+                            """,
+                            (m["new_location"] or None, now, today, now, m["tonbag_id"]),
+                        )
+                    # (b) sold_table INSERT (v8.6.9 fix: SOLD 페이지 표시 위해 필수)
+                    if m.get("_needs_sold_insert"):
+                        weight_kg = float(m.get("_db_weight") or 0)
+                        weight_mt = round(weight_kg / 1000.0, 4) if weight_kg else 0.0
+                        conn.execute(
+                            """
+                            INSERT INTO sold_table (
+                                lot_no, tonbag_id, sub_lt, tonbag_uid,
+                                picking_id, sales_order_no, picking_no,
+                                sap_no, bl_no, customer,
+                                sold_qty_mt, sold_qty_kg,
+                                status, sold_date, created_at, created_by,
+                                is_sample
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SOLD', ?, ?, 'BARCODE_SCAN', ?)
+                            """,
+                            (
+                                m.get("_db_lot_no"), m["tonbag_id"], m.get("_db_sub_lt"), m["tonbag_uid"],
+                                m.get("_db_picking_id"), m.get("_db_sale_ref"), m.get("_db_pick_ref"),
+                                m.get("_db_sap_no"), m.get("_db_bl_no"), m.get("_db_picked_to"),
+                                weight_mt, weight_kg,
+                                today, now,
+                                int(m.get("_db_is_sample") or 0),
+                            ),
+                        )
+                        sold_inserted += 1
+                # 실제 적용 건수 재계산 (inventory_tonbag 기준)
                 applied = conn.execute(
                     "SELECT COUNT(*) FROM inventory_tonbag WHERE id IN ({}) AND status = 'SOLD'".format(
                         ",".join("?" * len(matched))
                     ),
                     [m["tonbag_id"] for m in matched],
                 ).fetchone()[0]
+
+                # ════════════════════════════════════════════════════════════
+                # v8.6.9 정책 (사용자 최종 확정 2026-05-25 - 절대 변경 금지):
+                #   ┌─ 바코드 스캔 SOLD 확정 = 업로드 파일에 명시된 톤백만 1:1 처리.
+                #   ├─ 자동 추론은 어떤 형태든 금지 (LOT 기반, picking_no 기반 모두 금지).
+                #   ├─ 샘플 SOLD는 별도 워크플로우 (피킹리스트 기반)로 처리해야 함.
+                #   └─ 이 함수에서 본품 외 톤백을 자동으로 SOLD 전환하지 않음.
+                # ════════════════════════════════════════════════════════════
                 conn.commit()
+                apply_sec = perf_counter() - t_apply_start
+                logger.info(
+                    f"[barcode-confirm-sold] inventory_tonbag SOLD={applied}, sold_table INSERT={sold_inserted}"
+                )
                 logger.info(f"[barcode-confirm-sold] 반영 완료: {applied}건 ({file.filename})")
 
             sample_count = sum(1 for it in items if (it.get("weight_kg") or 0) < 10)
@@ -1295,6 +1439,10 @@ async def barcode_confirm_sold(file: UploadFile = File(...), dry_run: bool = Tru
                     "not_found": len(not_found),
                     "sample_count": sample_count,
                     "applied": applied if not dry_run else 0,
+                    "sold_inserted": sold_inserted if not dry_run else 0,
+                    "parse_sec": round(parse_sec, 3),
+                    "match_sec": round(match_sec, 3),
+                    "apply_sec": round(apply_sec, 3),
                 },
                 "preview": {
                     "matched": matched[:50],
@@ -1311,6 +1459,249 @@ async def barcode_confirm_sold(file: UploadFile = File(...), dry_run: bool = Tru
         raise
     except Exception as e:
         logger.exception("[barcode-confirm-sold] 처리 실패")
+        raise HTTPException(500, f"처리 실패: {e}")
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+
+# ════════════════════════════════════════════════════════════════════
+# v8.6.9 (2026-05-25): 피킹리스트 기반 샘플 SOLD 확정
+#
+# 정책 (사용자 최종 확정 — 절대 변경 금지):
+#   - 자동 추론 절대 금지. 피킹리스트 파일에 명시된 샘플 행만 1:1 처리.
+#   - 본품은 별도 메뉴(barcode-confirm-sold)에서 바코드 검증으로 SOLD.
+#   - 샘플은 바코드 안 찍히므로 피킹리스트 데이터로만 SOLD 가정 → 이 메뉴 사용.
+#   - 매칭: 피킹리스트의 KG 행(is_sample=True) → inventory_tonbag.lot_no AND is_sample=1
+# ════════════════════════════════════════════════════════════════════
+@router.post(
+    "/picking-sample-sold",
+    summary="🧪 피킹리스트 기반 샘플 SOLD 확정 (PDF/Excel)",
+)
+async def picking_sample_sold(file: UploadFile = File(...), dry_run: bool = True):
+    """피킹리스트 PDF/Excel → 샘플 행만 추출 → SOLD 확정.
+
+    Args:
+        file: Picking List PDF (.pdf) 또는 Excel (.xlsx/.xls)
+        dry_run: True(기본)=미리보기만, False=실제 DB 반영
+
+    Returns:
+        {
+            ok: bool,
+            dry_run: bool,
+            summary: {total_sample_rows, match, mismatch_status, not_found, applied, sold_inserted},
+            preview: {matched: [], mismatch_status: [], not_found: []},
+            warnings: []
+        }
+    """
+    import sqlite3
+
+    if not file.filename:
+        raise HTTPException(400, "파일명 없음")
+    fname_lower = file.filename.lower()
+    if not fname_lower.endswith((".pdf", ".xlsx", ".xls")):
+        raise HTTPException(400, f"PDF/Excel 파일만 지원. 받은 파일: {file.filename}")
+
+    try:
+        from backend.api import engine, ENGINE_AVAILABLE
+    except Exception as e:
+        raise HTTPException(500, f"엔진 로드 실패: {e}")
+    if not ENGINE_AVAILABLE or engine is None:
+        raise HTTPException(500, "엔진 사용 불가")
+
+    tmp_path = None
+    try:
+        content = await file.read()
+        if not content:
+            raise HTTPException(400, "빈 파일")
+        ext = os.path.splitext(file.filename)[1].lower()
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+        logger.info(f"[picking-sample-sold] 수신: {file.filename} ({len(content)} bytes, dry_run={dry_run})")
+
+        # 파일 타입에 따라 파서 선택
+        if ext == ".pdf":
+            from features.parsers.picking_list_parser import parse_picking_list_pdf
+            doc = parse_picking_list_pdf(tmp_path)
+        else:
+            from features.parsers.picking_excel_parser import parse_picking_list_excel
+            doc = parse_picking_list_excel(tmp_path)
+
+        if not doc.get("parse_ok"):
+            return {
+                "ok": False,
+                "dry_run": dry_run,
+                "summary": {"total_sample_rows": 0, "match": 0, "mismatch_status": 0, "not_found": 0, "applied": 0, "sold_inserted": 0},
+                "preview": {"matched": [], "mismatch_status": [], "not_found": []},
+                "warnings": doc.get("warnings", []),
+                "error": "파싱 실패",
+            }
+
+        # 샘플 행만 필터링 (is_sample=True)
+        sample_items = [it for it in doc.get("items", []) if it.get("is_sample")]
+        if not sample_items:
+            return {
+                "ok": True,
+                "dry_run": dry_run,
+                "summary": {"total_sample_rows": 0, "match": 0, "mismatch_status": 0, "not_found": 0, "applied": 0, "sold_inserted": 0},
+                "preview": {"matched": [], "mismatch_status": [], "not_found": []},
+                "warnings": doc.get("warnings", []) + ["피킹리스트에 샘플(KG) 행 없음 — 처리할 항목 없음"],
+                "message": "이 피킹리스트에는 샘플 행이 없습니다",
+            }
+
+        matched: List[Dict[str, Any]] = []
+        mismatch_status: List[Dict[str, Any]] = []
+        not_found: List[Dict[str, Any]] = []
+
+        db_path = getattr(engine, "db_path", None) or os.path.join(BASE_DIR, "data", "db", "sqm_inventory.db")
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            # 각 샘플 행에 대해 inventory_tonbag에서 매칭
+            for it in sample_items:
+                lot_no = str(it.get("lot_no") or "").strip()
+                if not lot_no:
+                    not_found.append({"lot_no": "(empty)", "qty_kg": it.get("qty_kg")})
+                    continue
+
+                # 매칭: lot_no + is_sample=1
+                row = conn.execute(
+                    """
+                    SELECT id, tonbag_uid, status, sub_lt, weight,
+                           sale_ref, picked_to, pick_ref, picking_id, bl_no, sap_no
+                    FROM inventory_tonbag
+                    WHERE lot_no = ? AND COALESCE(is_sample, 0) = 1
+                    LIMIT 1
+                    """,
+                    (lot_no,),
+                ).fetchone()
+
+                if row is None:
+                    not_found.append({
+                        "lot_no": lot_no,
+                        "qty_kg": it.get("qty_kg"),
+                        "note": "inventory_tonbag에 샘플 톤백 없음",
+                    })
+                    continue
+
+                # 중복 체크: 이미 SOLD + sold_table 등록됨
+                in_sold_table = conn.execute(
+                    "SELECT 1 FROM sold_table WHERE tonbag_id = ? LIMIT 1",
+                    (row["id"],),
+                ).fetchone() is not None
+                cur_status = (row["status"] or "").upper()
+
+                if cur_status == "SOLD" and in_sold_table:
+                    mismatch_status.append({
+                        "lot_no": lot_no,
+                        "tonbag_id": row["id"],
+                        "tonbag_uid": row["tonbag_uid"],
+                        "current_status": cur_status,
+                        "note": "이미 SOLD + sold_table 등록됨 — 중복 스킵",
+                    })
+                    continue
+
+                matched.append({
+                    "lot_no": lot_no,
+                    "tonbag_id": row["id"],
+                    "tonbag_uid": row["tonbag_uid"],
+                    "sub_lt": row["sub_lt"],
+                    "previous_status": cur_status,
+                    "weight_kg": float(row["weight"] or 1.0),
+                    "_db_sale_ref": row["sale_ref"],
+                    "_db_picked_to": row["picked_to"],
+                    "_db_pick_ref": row["pick_ref"],
+                    "_db_picking_id": row["picking_id"],
+                    "_db_bl_no": row["bl_no"],
+                    "_db_sap_no": row["sap_no"],
+                    "_needs_inventory_update": cur_status != "SOLD",
+                    "_needs_sold_insert": not in_sold_table,
+                })
+
+            # 실제 적용
+            applied = 0
+            sold_inserted = 0
+            if not dry_run and matched:
+                now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                today = datetime.now().strftime("%Y-%m-%d")
+                for m in matched:
+                    if m.get("_needs_inventory_update"):
+                        conn.execute(
+                            """
+                            UPDATE inventory_tonbag
+                            SET status = 'SOLD',
+                                outbound_date = COALESCE(outbound_date, ?),
+                                updated_at = ?
+                            WHERE id = ? AND status != 'SOLD'
+                            """,
+                            (today, now, m["tonbag_id"]),
+                        )
+                    if m.get("_needs_sold_insert"):
+                        weight_kg = float(m.get("weight_kg") or 1.0)
+                        weight_mt = round(weight_kg / 1000.0, 4)
+                        conn.execute(
+                            """
+                            INSERT INTO sold_table (
+                                lot_no, tonbag_id, sub_lt, tonbag_uid,
+                                picking_id, sales_order_no, picking_no,
+                                sap_no, bl_no, customer,
+                                sold_qty_mt, sold_qty_kg,
+                                status, sold_date, created_at, created_by,
+                                is_sample
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SOLD', ?, ?, 'PICKING_SAMPLE', 1)
+                            """,
+                            (
+                                m["lot_no"], m["tonbag_id"], m.get("sub_lt"), m.get("tonbag_uid"),
+                                m.get("_db_picking_id"),
+                                doc.get("sales_order_no") or m.get("_db_sale_ref"),
+                                doc.get("picking_no") or m.get("_db_pick_ref"),
+                                m.get("_db_sap_no"), m.get("_db_bl_no"),
+                                doc.get("customer") or m.get("_db_picked_to"),
+                                weight_mt, weight_kg, today, now,
+                            ),
+                        )
+                        sold_inserted += 1
+                applied = conn.execute(
+                    "SELECT COUNT(*) FROM inventory_tonbag WHERE id IN ({}) AND status = 'SOLD'".format(
+                        ",".join("?" * len(matched))
+                    ),
+                    [m["tonbag_id"] for m in matched],
+                ).fetchone()[0]
+                conn.commit()
+                logger.info(f"[picking-sample-sold] 반영 완료: inventory={applied}, sold_table INSERT={sold_inserted}")
+
+            return {
+                "ok": True,
+                "dry_run": dry_run,
+                "summary": {
+                    "total_sample_rows": len(sample_items),
+                    "match": len(matched),
+                    "mismatch_status": len(mismatch_status),
+                    "not_found": len(not_found),
+                    "applied": applied if not dry_run else 0,
+                    "sold_inserted": sold_inserted if not dry_run else 0,
+                },
+                "preview": {
+                    "matched": matched[:50],
+                    "mismatch_status": mismatch_status[:50],
+                    "not_found": not_found[:50],
+                },
+                "warnings": doc.get("warnings", []),
+                "filename": file.filename,
+                "picking_no": doc.get("picking_no"),
+                "customer": doc.get("customer"),
+            }
+        finally:
+            conn.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("[picking-sample-sold] 처리 실패")
         raise HTTPException(500, f"처리 실패: {e}")
     finally:
         if tmp_path and os.path.exists(tmp_path):

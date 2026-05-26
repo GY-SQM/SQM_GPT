@@ -2518,7 +2518,11 @@
     'onReportCustom':    {m:'GET',  u:'/api/q/inventory-report',                   lbl:'맞춤 보고서'},
     'onInvoiceGenerate': {m:'GET',  u:'/api/action3/export-invoice-excel',         lbl:'거래명세서 생성'},
     'onDetailOfOutbound': {m:'GET', u:'/api/q2/detail-outbound',                 lbl:'Detail of Outbound'},
-    'onSalesOrderDN':    {m:'GET',  u:'/api/q3/sales-order-dn',                  lbl:'Sales Order DN'},
+    'onOutboundReport':  {m:'JS',   u:'outbound-report-modal',                   lbl:'Outbound Report'},
+    'onExportWorkReport': {m:'JS',  u:'export-work-report-modal',                lbl:'수출 작업 리포트'},
+    'onStorageConfirmationReport': {m:'JS', u:'storage-confirmation-modal',       lbl:'Storage Confirmation'},
+    'onSoldInventoryReport': {m:'JS', u:'sold-inventory-report-modal',            lbl:'SOLD Inventory Report'},
+    'onSalesOrderDN':    {m:'JS',   u:'sales-order-dn-modal',                    lbl:'Sales Order DN'},
     'onDnCrossCheck':    {m:'GET',  u:'/api/q3/dn-cross-check',                  lbl:'DN 교차검증'},
     'onLotDetailPdf':    {m:'GET',  u:'/api/action/lot-detail',                  lbl:'LOT 상세'},
     /* 재고 메뉴: FileResponse — GET+json 모달이 아니라 다운로드 (onExportLot 과 동일 계열) */
@@ -2732,6 +2736,11 @@
     'ai-tools-hub': function(){ window.showAiToolsHubModal(); },
     'report-templates-hub': function(){ window.showReportTemplatesHubModal(); },
     'report-history-audit': function(){ window.showReportHistoryAuditModal(); },
+    'outbound-report-modal': function(){ window.showTemplateReportModal('outbound_report'); },
+    'sales-order-dn-modal': function(){ window.showTemplateReportModal('sales_order_dn'); },
+    'export-work-report-modal': function(){ window.showTemplateReportModal('export_work_report'); },
+    'storage-confirmation-modal': function(){ window.showTemplateReportModal('storage_confirmation'); },
+    'sold-inventory-report-modal': function(){ window.showTemplateReportModal('sold_inventory_report'); },
 
     /* placeholder */
     wip: function(conf){

@@ -22,7 +22,7 @@ window.SQM_STATUS_MAP = window.SQM_STATUS_MAP || {
   RESERVED:  { color: 'var(--warning)',   fg: '#000',  label: '배정'    },
   PICKED:    { color: '#42a5f5',          fg: '#fff',  label: '피킹'    },
   SOLD:      { color: '#66bb6a',          fg: '#fff',  label: '출고'    },
-  RETURN:    { color: '#ef5350',          fg: '#fff',  label: '반품'    },
+  RETURN:    { color: '#ef5350',          fg: '#fff',  label: 'Return'  },
 };
 
 
@@ -889,9 +889,13 @@ window.SQM_STATUS_MAP = window.SQM_STATUS_MAP || {
     var timeout = opts.timeout || DEFAULT_TIMEOUT;
     var retries = (opts.retries !== undefined) ? opts.retries : 2;
     var url = (path.indexOf('http') === 0) ? path : API + path;
+    if (opts.noCache && method.toUpperCase() === 'GET') {
+      url += (url.indexOf('?') >= 0 ? '&' : '?') + '_ts=' + Date.now();
+    }
     var fetchOpts = {
       method: method.toUpperCase(),
-      headers: {'Content-Type':'application/json'}
+      headers: {'Content-Type':'application/json'},
+      cache: opts.noCache ? 'no-store' : 'default'
     };
     if (body !== null && body !== undefined &&
         ['POST','PUT','DELETE'].includes(fetchOpts.method)) {
@@ -941,6 +945,26 @@ window.SQM_STATUS_MAP = window.SQM_STATUS_MAP || {
   window.apiCall = apiCall;
   window.apiGet  = apiGet;
   window.apiPost = apiPost;
+
+  function openNativeDatePicker(el) {
+    if (!el || el.type !== 'date' || el.disabled || el.readOnly) return;
+    if (typeof el.showPicker !== 'function') return;
+    try {
+      el.showPicker();
+    } catch (e) {}
+  }
+
+  document.addEventListener('click', function(e) {
+    if (e.target && e.target.matches && e.target.matches('input[type="date"]')) {
+      openNativeDatePicker(e.target);
+    }
+  }, true);
+
+  document.addEventListener('focusin', function(e) {
+    if (e.target && e.target.matches && e.target.matches('input[type="date"]')) {
+      openNativeDatePicker(e.target);
+    }
+  });
 
   /* ===================================================
      3. STATE / THEME
@@ -1294,6 +1318,54 @@ window.SQM_STATUS_MAP = window.SQM_STATUS_MAP || {
                    + '<ul class="alerts-list">' + items + '</ul>';
     }).catch(function() {});
   }
+  window.loadAlerts = loadAlerts;
+
+  function loadStatusbar() {
+    var c = document.getElementById('statusbar-container');
+    if (!c) return;
+    if (!c.querySelector('.statusbar')) {
+      c.innerHTML = '<div class="statusbar">'
+        + '<span id="sb-modules">Modules: -/-</span><span class="sb-sep">|</span>'
+        + '<span id="sb-unallocated">위치 미배정 -</span><span class="sb-sep">|</span>'
+        + '<span id="sb-scan-fail">스캔 실패율 -</span><span class="sb-sep">|</span>'
+        + '<span id="sb-lot-age">LOT 평균 재고기간 -</span>'
+        + '<span style="flex:1"></span><span id="sb-last-refresh">마지막 경신: -</span>'
+        + '<label style="margin-left:12px"><input type="checkbox" id="sb-auto-refresh" checked> 자동 새로고침</label>'
+        + '</div>';
+    }
+    refreshStatusbar();
+  }
+
+  function refreshStatusbar() {
+    apiGet('/api/dashboard/stats').then(function(res) {
+      var d = res.data || res || {};
+      var unalloc = d.unallocated_bags !== undefined ? d.unallocated_bags : (d.position_missing !== undefined ? d.position_missing : '-');
+      var scanFail = d.scan_failure_rate !== undefined ? d.scan_failure_rate : '-';
+      var lotAge = d.lot_avg_age_days !== undefined ? d.lot_avg_age_days : '-';
+      function setText(id, text) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = text;
+      }
+      setText('sb-unallocated', '위치 미배정 ' + unalloc + '개');
+      setText('sb-scan-fail', '스캔 실패율 ' + scanFail);
+      setText('sb-lot-age', 'LOT 평균 재고기간 ' + lotAge + '일');
+    }).catch(function() {}).finally(function() {
+      apiGet('/api/health').then(function(res) {
+        var h = res.data || res || {};
+        var loaded = h.modules_loaded !== undefined ? h.modules_loaded : (h.engine_available ? 7 : 0);
+        var total = h.modules_total !== undefined ? h.modules_total : 8;
+        var el = document.getElementById('sb-modules');
+        if (el) el.textContent = 'Modules: ' + loaded + '/' + total;
+      }).catch(function() {
+        var el = document.getElementById('sb-modules');
+        if (el) el.textContent = 'Modules: ?/?';
+      });
+      var ts = document.getElementById('sb-last-refresh');
+      if (ts) ts.textContent = '마지막 경신: ' + new Date().toLocaleString('ko-KR');
+    });
+  }
+  window.loadStatusbar = loadStatusbar;
+  window.refreshStatusbar = refreshStatusbar;
 
   function fmtN(v) {
     if (typeof v !== 'number') return (v == null ? '-' : v);
@@ -1309,8 +1381,8 @@ window.SQM_STATUS_MAP = window.SQM_STATUS_MAP || {
     {key:'available', label:'Available (판매가능)', icon:'\u2705', color:'#22c55e'},
     {key:'reserved',  label:'Reserved (배정)',      icon:'\uD83D\uDCCB', color:'#3b82f6'},
     {key:'picked',    label:'Picked (피킹)',        icon:'\uD83D\uDCE6', color:'#f59e0b'},
-    {key:'outbound',  label:'Outbound (출고)',      icon:'\uD83D\uDE9A', color:'#ef4444'},
-    {key:'return',    label:'Return (반품)',         icon:'\uD83D\uDD04', color:'#8b5cf6'}
+    {key:'outbound',  label:'Sold (출고완료)',      icon:'\uD83D\uDE9A', color:'#ef4444'},
+    {key:'return',    label:'Return',                icon:'\uD83D\uDD04', color:'#8b5cf6'}
   ];
 
   /* 5단계 KPI 카드 제거 — 컨테이너만 초기화 */
@@ -1362,7 +1434,7 @@ window.SQM_STATUS_MAP = window.SQM_STATUS_MAP || {
     html += bar('Reserved  (배분확정)', '#3b82f6', '\uD83D\uDCCB', resv_mt, resv_pct);
     html += bar('Picked    (피킹완료)', '#f59e0b', '\uD83D\uDCE6', picked_mt, picked_pct);
     html += '<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border-color,#333);font-size:11px;color:var(--text-muted,#888)">'
-          + 'TOTAL = Available + Reserved + Picked | 출고완료(Outbound)는 별도 집계</div>';
+          + 'TOTAL = Available + Reserved + Picked | Sold(출고완료)는 별도 집계</div>';
     html += '</div>';
     el.innerHTML = html;
   }
@@ -1407,7 +1479,7 @@ window.SQM_STATUS_MAP = window.SQM_STATUS_MAP || {
     html += '<th ' + TH + ' style="color:#22c55e">Available</th>';
     html += '<th ' + TH + ' style="color:#3b82f6">Reserved</th>';
     html += '<th ' + TH + ' style="color:#f59e0b">Picked</th>';
-    html += '<th ' + TH + ' style="color:#ef4444">Outbound</th>';
+    html += '<th ' + TH + ' style="color:#ef4444">Sold</th>';
     html += '<th ' + TH + ' style="color:#8b5cf6">Return</th>';
     html += '<th ' + TH + '>톤백(개)</th>';
     html += '<th ' + TH + '>중량(MT)</th>';
@@ -1463,7 +1535,7 @@ window.SQM_STATUS_MAP = window.SQM_STATUS_MAP || {
     var STATUS_LABEL = {
       PENDING:'⏳ PENDING (입항대기)', AVAILABLE:'✅ AVAILABLE (판매가능)',
       RESERVED:'📋 RESERVED (배분확정)', PICKED:'📦 PICKED (피킹완료)',
-      SOLD:'🚛 SOLD (출고완료)',       RETURN:'↩️ RETURN (반품)'
+      SOLD:'🚛 SOLD (출고완료)',       RETURN:'↩️ RETURN'
     };
 
     /* 로딩 스피너 먼저 */
