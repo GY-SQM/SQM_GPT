@@ -35,7 +35,7 @@ cur.execute('''INSERT OR REPLACE INTO inbound_template
    "HAPAG", 500,
    HAPAG_PACKING, HAPAG_INVOICE, HAPAG_BL,
    "LITHIUM CARBONATE", "EURO",
-   "Hapag-Lloyd 500kg 헤백 (v8.6.8 신규, AI fallback 힌트)",
+   "Hapag-Lloyd 500kg 헤백 (v8.6.9 신규, AI fallback 힌트)",
    1, "", 0, ""))
 
 # HAPAG 1000kg
@@ -49,7 +49,7 @@ cur.execute('''INSERT OR REPLACE INTO inbound_template
    "HAPAG", 1000,
    HAPAG_PACKING, HAPAG_INVOICE, HAPAG_BL,
    "LITHIUM CARBONATE", "EURO",
-   "Hapag-Lloyd 1000kg 헤백 (v8.6.8 신규)",
+   "Hapag-Lloyd 1000kg 헤백 (v8.6.9 신규)",
    1, "", 0, ""))
 
 # MAERSK_LC1000 — 일관성 (이미 500 있고 1000 없는 상태 보완)
@@ -65,7 +65,7 @@ if row:
        "MAERSK", 1000,
        row[0], row[1], row[2],
        "LITHIUM CARBONATE", "EURO",
-       "MAERSK 1000kg 헤백 (v8.6.8 신규, BL은 bl_mixin.py 의 MAERSK 좌표가 9자리→MAEU 보강 처리)",
+       "MAERSK 1000kg 헤백 (v8.6.9 신규, BL은 bl_mixin.py 의 MAERSK 좌표가 9자리→MAEU 보강 처리)",
        1, "", 0, ""))
 
 con.commit()

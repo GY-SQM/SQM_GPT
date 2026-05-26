@@ -143,7 +143,7 @@ async def scan_move(payload: dict):
         prev = r.get("location") or "-"
         conn.execute("UPDATE inventory_tonbag SET location=? WHERE id=?", (to_loc, r["id"]))
         conn.commit()
-        # v8.6.8: 스캔 이동 직후 from/to 셀 모두 비파괴 검증
+        # v8.6.9: 스캔 이동 직후 from/to 셀 모두 비파괴 검증
         _cell_warnings = []
         try:
             from engine_modules.warehouse_cell_logic import check_cell_invariants

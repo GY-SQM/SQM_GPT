@@ -404,7 +404,7 @@ try:
 except Exception as e:
     logging.warning(f"product_master router load failed: {e}")
 
-# v8.6.8: Warehouse cell state API (창고 셀 점유 동적 조회)
+# v8.6.9: Warehouse cell state API (창고 셀 점유 동적 조회)
 try:
     from backend.api.warehouse_api import router as warehouse_api_router
     app.include_router(warehouse_api_router)

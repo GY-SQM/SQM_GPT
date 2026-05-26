@@ -677,7 +677,7 @@ def open_lot_excel():
         return err_response(str(e))
 
 
-# ── LOT 리스트 JSON (v8.6.8 — 화면 테이블 렌더용) ────────────────────────
+# ── LOT 리스트 JSON (v8.6.9 — 화면 테이블 렌더용) ────────────────────────
 _LOT_LIST_JSON_HEADERS = [
     "sap_no", "bl_no", "container_no", "product",
     "lot_no",
@@ -688,7 +688,7 @@ _LOT_LIST_JSON_HEADERS = [
 ]
 
 
-@router.get("/lot-list-json", summary="📋 LOT 리스트 JSON (화면 렌더용 v8.6.8)")
+@router.get("/lot-list-json", summary="📋 LOT 리스트 JSON (화면 렌더용 v8.6.9)")
 def lot_list_json():
     """
     `/api/action/export-lot-excel` 와 동일 SQL을 JSON 으로 반환.

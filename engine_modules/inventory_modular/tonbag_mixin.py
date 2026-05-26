@@ -262,7 +262,7 @@ class TonbagMixin:
                 f"reason={rc} op={operator}"
             )
 
-            # v8.6.8: 셀 무결성 비파괴 검증 — 이동 후 from/to 셀 모두 점검
+            # v8.6.9: 셀 무결성 비파괴 검증 — 이동 후 from/to 셀 모두 점검
             try:
                 from engine_modules.warehouse_cell_logic import check_cell_invariants
                 for chk_loc in {from_loc, to_loc}:

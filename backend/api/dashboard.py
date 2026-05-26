@@ -324,7 +324,7 @@ def get_dashboard_stats():
             })
 
         # ── 정합성 요약 (총입고 = PENDING대기 + 현재재고 + 출고누계) ──
-        # BUG FIX (v8.6.8): total_inbound_kg → 전체 initial_weight 기준, pending_kg 분리 표시
+        # BUG FIX (v8.6.9): total_inbound_kg → 전체 initial_weight 기준, pending_kg 분리 표시
         # PENDING 톤백은 창고 미반입 → current_stock_kg 제외, pending_kg로 별도 집계
         total_inbound_kg = c.execute("""
             SELECT COALESCE(SUM(initial_weight), 0) FROM inventory

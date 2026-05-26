@@ -12,7 +12,7 @@ from ..utils.ui_constants import is_dark, Spacing, ThemeColors, apply_tooltip
 
 logger = logging.getLogger(__name__)
 
-# v8.6.8: OUTBOUND→SOLD 통합 완료
+# v8.6.9: OUTBOUND→SOLD 통합 완료
 _SOLD_TABLE_ACTIVE_STATUSES = ("'SOLD'", "'CONFIRMED'")
 
 SOLD_LOT_COLUMNS = [

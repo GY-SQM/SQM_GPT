@@ -3,7 +3,7 @@
 analyze_locations.py
 ====================
 
-위치 형식 분포 분석 CLI 도구 — v8.6.8 마이그레이션 사전 점검용.
+위치 형식 분포 분석 CLI 도구 — v8.6.9 마이그레이션 사전 점검용.
 
 사용:
   cd D:/program/SQM_inventory/SQM_v868_claan

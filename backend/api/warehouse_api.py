@@ -127,19 +127,40 @@ def api_cell_grid(dong: int = Query(..., description='5 또는 6'),
 
         con = _db()
         try:
+            # lot_location_map: 해당 동·랙의 셀별 LOT 미리 조회 (실제 재고 위치 우선)
+            loc_rows = con.execute("""
+                SELECT col, level, lot_no
+                FROM lot_location_map
+                WHERE dong=? AND rack=?
+            """, (dong, rack)).fetchall()
+            loc_map = {(int(r['col']), int(r['level'])): r['lot_no'] for r in loc_rows}
+
             cells = []
             for col in range(COL_RANGE[0], COL_RANGE[1] + 1):
                 for lv in range(1, max_lv + 1):
                     loc = format_cell_location(dong, rack, col, lv)
                     st  = get_cell_state(con, loc)
+                    # lot_location_map 우선 → 없으면 inventory_tonbag 폴백
+                    map_lot = loc_map.get((col, lv))
+                    if map_lot:
+                        primary_lot = map_lot
+                        primary_sub = None
+                        cell_state  = 'OCCUPIED'
+                    else:
+                        tbs = st.get('tonbags') or []
+                        primary_lot = tbs[0]['lot_no'] if tbs else ''
+                        primary_sub = tbs[0]['sub_lt'] if tbs else None
+                        cell_state  = st['state']
                     cells.append({
                         'location':     loc,
                         'col':          col,
                         'level':        lv,
-                        'state':        st['state'],
+                        'state':        cell_state,
                         'active_count': st['active_count'],
                         'capacity':     st['capacity'],
                         'packing_type': st['packing_type'],
+                        'lot_no':       primary_lot,
+                        'sub_lt':       primary_sub,
                     })
         finally:
             con.close()
@@ -151,6 +172,67 @@ def api_cell_grid(dong: int = Query(..., description='5 또는 6'),
     except Exception as e:
         logger.error('cell-grid error: %s', e)
         return err_response(str(e))
+
+# ─────────────────────────────────────────────────────────────────────
+# GET /api/warehouse/rack-heatmap
+#   대시보드 히트맵용 — 랙별 지배 LOT + 점유 통계 (경량 단일 쿼리)
+# ─────────────────────────────────────────────────────────────────────
+@router.get('/rack-heatmap', summary='🗺 랙별 LOT 히트맵 (대시보드 임베드용)')
+def api_rack_heatmap():
+    """
+    전체 창고(5동/6동) 각 랙의 점유 현황과 지배 LOT 반환.
+    셀 단위가 아닌 랙 단위 집계라 매우 빠름 — 대시보드 자동 갱신 적합.
+    """
+    try:
+        from engine_modules.warehouse_cell_logic import (
+            LEVEL_BY_RACK, WAREHOUSE_DONGS, RACK_RANGE, COL_RANGE,
+        )
+        con = _db()
+        try:
+            rows = con.execute("""
+                SELECT dong, rack, lot_no, SUM(tonbag_count) AS cnt
+                FROM lot_location_map
+                WHERE dong IS NOT NULL AND rack IS NOT NULL AND lot_no IS NOT NULL
+                GROUP BY dong, rack, lot_no
+                ORDER BY dong, rack, cnt DESC
+            """).fetchall()
+        finally:
+            con.close()
+
+        from collections import defaultdict
+        rack_data = defaultdict(lambda: {'occupied': 0, 'lots': [], 'lot_counts': {}})
+        for r in rows:
+            d, rk = r['dong'], r['rack']
+            lot, cnt = r['lot_no'] or '', r['cnt']
+            key = (d, rk)
+            rack_data[key]['occupied'] += cnt
+            rack_data[key]['lot_counts'][lot] = cnt
+            if lot and lot not in rack_data[key]['lots']:
+                rack_data[key]['lots'].append(lot)
+
+        result = []
+        for dong in WAREHOUSE_DONGS:
+            for rack in range(RACK_RANGE[0], RACK_RANGE[1] + 1):
+                max_lv = LEVEL_BY_RACK.get(rack, 0)
+                total_cells = (COL_RANGE[1] - COL_RANGE[0] + 1) * max_lv
+                key = (dong, rack)
+                info = rack_data.get(key, {})
+                lot_counts = info.get('lot_counts', {})
+                dominant = max(lot_counts, key=lot_counts.get) if lot_counts else ''
+                result.append({
+                    'dong':         dong,
+                    'rack':         rack,
+                    'rack_label':   f'{rack:02d}',
+                    'dominant_lot': dominant,
+                    'occupied':     info.get('occupied', 0),
+                    'total':        total_cells,
+                    'lots':         info.get('lots', []),
+                })
+        return ok_response({'racks': result})
+    except Exception as e:
+        logger.error('rack-heatmap error: %s', e)
+        return err_response(str(e))
+
 
 
 # ─────────────────────────────────────────────────────────────────────

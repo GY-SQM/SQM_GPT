@@ -38,7 +38,7 @@ python templates\applied_patches\patch_title_transfer_date.py
 
 ## v868 마이그레이션 시 활용
 
-새 버전(v8.6.8 등)으로 업그레이드할 때:
+새 버전(v8.6.9 등)으로 업그레이드할 때:
 1. v867 코드를 새 폴더에 복사
 2. 이 폴더의 4개 패치 다시 실행
 3. 멱등성 가드 덕분에 안전 (이미 적용 시 skip)

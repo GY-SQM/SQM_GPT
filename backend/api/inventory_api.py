@@ -206,7 +206,7 @@ def cancel_inventory(lot_no: str):
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# GET /api/inventory/unallocated-tonbags  (v8.6.8 위치 매핑 워크플로우)
+# GET /api/inventory/unallocated-tonbags  (v8.6.9 위치 매핑 워크플로우)
 #   location 미배정 톤백 + LOT 단위 진행률 통계
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @inv_router.get("/unallocated-tonbags",
@@ -331,7 +331,7 @@ def unallocated_tonbags(lot_no: Optional[str] = QP(None),
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# POST /api/inventory/assign-location  (v8.6.8 단건 위치 배정)
+# POST /api/inventory/assign-location  (v8.6.9 단건 위치 배정)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @inv_router.post("/assign-location",
                  summary="📍 단건 위치 배정 (실시간 검증)")
@@ -404,7 +404,7 @@ def assign_location(payload: dict = Body(...)):
                 "VALUES (?, ?, ?, ?, ?, ?, 'LOC_ASSIGN', ?, ?, ?)",
                 (tb['lot_no'], tb['sub_lt'], move_type, tb['w'],
                  from_loc or '', location, operator,
-                 note or 'v8.6.8 위치 매핑', ts)
+                 note or 'v8.6.9 위치 매핑', ts)
             )
             db.execute(
                 "INSERT INTO audit_log "
@@ -446,7 +446,7 @@ def assign_location(payload: dict = Body(...)):
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# POST /api/inventory/assign-locations-bulk  (v8.6.8 일괄 위치 배정)
+# POST /api/inventory/assign-locations-bulk  (v8.6.9 일괄 위치 배정)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 @inv_router.post("/assign-locations-bulk",
                  summary="📍 일괄 위치 배정")

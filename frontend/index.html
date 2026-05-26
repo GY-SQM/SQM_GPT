@@ -369,6 +369,26 @@
         </div>
       </div>
       <div id="dashboard-detail" style="padding:8px 16px;"></div>
+
+      <!-- ▼ 창고 LOT 히트맵 (dashboard-warehouse-embed.js) -->
+      <div id="wh-embed-section" style="padding:4px 16px 14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:700;color:var(--text-muted,#90a4ae);">🏭 창고 현황 — LOT 배치 히트맵</span>
+          <button onclick="window._whEmbedRefresh()"
+                  style="background:none;border:1px solid var(--panel-border,#37474f);
+                         border-radius:4px;color:var(--text-muted,#90a4ae);
+                         font-size:11px;cursor:pointer;padding:2px 8px;">↺ 새로고침</button>
+        </div>
+        <div id="wh-embed-heatmap" style="min-height:60px;"></div>
+        <div id="wh-embed-rack-detail"
+             style="display:none;margin-top:10px;padding:10px;
+                    background:var(--bg-card,#1e272e);
+                    border:1px solid var(--panel-border,#37474f);
+                    border-radius:6px;overflow-x:auto;">
+        </div>
+      </div>
+      <!-- ▲ 창고 LOT 히트맵 끝 -->
+
     </div>
     <div id="page-container" class="page-content" style="display:none;"></div>
   </div>
@@ -392,6 +412,7 @@
   <script src="js/sqm-location-mapping.js?v=20260513a"></script>
   <script src="js/sqm-location-map-import.js?v=20260519a"></script>
   <script src="js/sqm-warehouse-dashboard.js?v=20260513a"></script>
+  <script src="js/dashboard-warehouse-embed.js?v=20260526a"></script>
     <script src="js/sqm-revert.js?v=20260512b"></script>
     <script src="js/sqm-weight-panel.js?v=20260517b"></script>
     <script src="js/sqm-settings-templates.js?v=20260517a"></script>
@@ -407,6 +428,50 @@
     <script src="js/sqm-tools-modals.js?v=20260517a"></script>
     <script src="js/sqm-product-modals.js?v=20260517a"></script>
     <script src="js/sqm-status-revert.js?v=20260525c"></script>
+  <script>
+  // ── 창고 히트맵 init (dashboard-warehouse-embed.js) ──────────────
+  // sqm-inline.js 가 dashboard 탭 활성화 시 loadKpi()를 호출하므로
+  // MutationObserver 로 #wh-embed-heatmap 가시성 감지 → 자동 초기화
+  (function() {
+    function _tryInit() {
+      if (typeof window.initWarehouseEmbed === 'function') {
+        window.initWarehouseEmbed();
+        return true;
+      }
+      return false;
+    }
+    // 1) 즉시 시도 (이미 로드됐을 때)
+    if (!_tryInit()) {
+      // 2) DOMContentLoaded 이후 재시도
+      document.addEventListener('DOMContentLoaded', _tryInit);
+    }
+    // 3) dashboard 탭 전환 감지 — #dashboard-container display 변화 관찰
+    var _inited = false;
+    var obs = new MutationObserver(function(muts) {
+      muts.forEach(function(m) {
+        if (m.attributeName === 'style' || m.attributeName === 'class') {
+          var el = document.getElementById('dashboard-container');
+          if (el && el.offsetParent !== null && !_inited) {
+            _inited = true;
+            if (typeof window.initWarehouseEmbed === 'function') {
+              window.initWarehouseEmbed();
+            }
+          }
+        }
+      });
+    });
+    document.addEventListener('DOMContentLoaded', function() {
+      var el = document.getElementById('dashboard-container');
+      if (el) obs.observe(el, { attributes: true });
+      // 초기 로드 시 dashboard 가 기본 탭이므로 한번 더 보장
+      setTimeout(function() {
+        if (typeof window.initWarehouseEmbed === 'function') {
+          window.initWarehouseEmbed();
+        }
+      }, 800);
+    });
+  })();
+  </script>
 
 
 <!-- ══ 🤖 AI 선사 템플릿 자동 생성 모달 ══ -->

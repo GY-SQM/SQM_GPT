@@ -98,7 +98,7 @@ def inventory_move(payload: dict):
               f"위치이동: {from_loc or '(없음)'} → {to_loc}", ts))
 
         con.commit()
-        # v8.6.8: 이동 직후 from/to 셀 모두 비파괴 검증
+        # v8.6.9: 이동 직후 from/to 셀 모두 비파괴 검증
         _cell_warnings = []
         try:
             from engine_modules.warehouse_cell_logic import check_cell_invariants
@@ -165,7 +165,7 @@ def allocate_location(payload: dict):
             f"위치배정: {old_loc or '없음'} → {location}", ts
         ))
         con.commit()
-        # v8.6.8: 위치 배정 직후 셀 무결성 비파괴 검증 (입고→첫 매핑 지점)
+        # v8.6.9: 위치 배정 직후 셀 무결성 비파괴 검증 (입고→첫 매핑 지점)
         _cell_warnings = []
         try:
             from engine_modules.warehouse_cell_logic import check_cell_invariants
@@ -463,7 +463,7 @@ def export_tonbag_excel(lot_no: Optional[str] = QP(None)):
         raise HTTPException(500, str(e))
 
 
-# ── 톤백 리스트 JSON (v8.6.8 — 화면 테이블 렌더용) ────────────────────────
+# ── 톤백 리스트 JSON (v8.6.9 — 화면 테이블 렌더용) ────────────────────────
 _TONBAG_LIST_JSON_HEADERS = [
     "sap_no", "bl_no", "container_no", "product",
     "tonbag_uid", "sub_lt", "tonbag_no", "weight_kg",
@@ -472,11 +472,11 @@ _TONBAG_LIST_JSON_HEADERS = [
 ]
 
 
-@router.get("/tonbag-list-json", summary="🎒 톤백 리스트 JSON (화면 렌더용 v8.6.8)")
+@router.get("/tonbag-list-json", summary="🎒 톤백 리스트 JSON (화면 렌더용 v8.6.9)")
 def tonbag_list_json(lot_no: Optional[str] = QP(None)):
     """`/api/action2/export-tonbag-excel` 와 동일 SQL을 JSON 으로 반환.
 
-    v8.6.8: 각 행에 cell_state(EMPTY/OCCUPIED/HALF/...) 함께 반환.
+    v8.6.9: 각 행에 cell_state(EMPTY/OCCUPIED/HALF/...) 함께 반환.
             location 별로 1회 계산 후 캐시.
     """
     try:

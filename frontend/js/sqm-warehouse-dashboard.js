@@ -36,7 +36,7 @@
 
   /* 셀 상태 → 색상 */
   var STATE_COLORS = {
-    EMPTY:    { bg: '#37474f', border: '#546e7a', text: '⬜' },
+    EMPTY:    { bg: 'transparent', border: 'transparent', text: '' },
     OCCUPIED: { bg: '#1b5e20', border: '#43a047', text: '🟦' },
     HALF:     { bg: '#f57f17', border: '#ff9800', text: '🟨' },
     OVER:     { bg: '#b71c1c', border: '#e53935', text: '⚠' },
@@ -230,7 +230,7 @@
       for (var col2 = 1; col2 <= 31; col2++) {
         var c = byCoord[col2 + '_' + lv];
         if (!c) {
-          html += '<td style="width:26px;height:22px;border:1px dashed #444;"></td>';
+          html += '<td style="width:26px;height:22px;"></td>';
           continue;
         }
         var st = STATE_COLORS[c.state] || STATE_COLORS.UNKNOWN;
@@ -238,10 +238,10 @@
         html += '<td onclick="window._whDashSelectCell(\'' + _esc(c.location) + '\')" '
           + 'title="' + _esc(c.location) + ' / ' + c.state + ' (' + c.active_count + '/' + c.capacity + ')" '
           + 'style="width:26px;height:22px;border:1px solid ' + st.border + ';'
-          + 'background:' + st.bg + ';color:#fff;text-align:center;cursor:pointer;font-size:9px;'
+          + 'background:' + st.bg + ';text-align:center;cursor:' + (c.state === 'EMPTY' ? 'default' : 'pointer') + ';font-size:9px;'
           + (isSel ? 'outline:3px solid #4fc3f7;outline-offset:-1px;' : '')
           + '">'
-          + (c.state === 'EMPTY' ? '' : c.active_count)
+          + ''
           + '</td>';
       }
       html += '</tr>';

@@ -3159,7 +3159,7 @@ class OutboundMixin(InventoryBaseMixin):
             # 6) 사후검증: LOT_TOTAL_MISMATCH + SAMPLE_POLICY
             self._co_run_post_checks(touched_lots, result)
 
-            # v8.6.8: 출고 확정 후 셀 무결성 비파괴 검증 + HALF 셀(CASE 3) 감지
+            # v8.6.9: 출고 확정 후 셀 무결성 비파괴 검증 + HALF 셀(CASE 3) 감지
             try:
                 from engine_modules.warehouse_cell_logic import (
                     check_cell_invariants, get_cell_state,

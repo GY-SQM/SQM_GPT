@@ -130,7 +130,7 @@ class DatabaseSchemaMixin:
                 currency TEXT DEFAULT '',
                 unit_price REAL DEFAULT 0,
                 remarks TEXT,
-                -- v8.6.8: 팔레트 구성 (셀 점유 계산용)
+                -- v8.6.9: 팔레트 구성 (셀 점유 계산용)
                 --   'A' = 1,000kg 1pack  (셀 1개에 톤백 1개)
                 --   'B' =   500kg 1pack  (셀 1개에 톤백 1개, 특수)
                 --   'C' =   500kg 2pack  (셀 1개에 톤백 2개)

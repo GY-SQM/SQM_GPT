@@ -1,4 +1,4 @@
-// playwright.config.js — SQM v8.6.8 회귀 테스트 설정
+// playwright.config.js — SQM v8.6.9 회귀 테스트 설정
 const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({

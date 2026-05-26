@@ -565,7 +565,7 @@ class InboundMixin(InventoryBaseMixin):
             'current_weight': weight,
             'picked_weight': 0,
             'mxbg_pallet': bag_count,
-            # v8.6.8: 팔레트 구성 (셀 점유 계산용)
+            # v8.6.9: 팔레트 구성 (셀 점유 계산용)
             #   'A' = 1,000kg 1pack / 'B' = 500kg 1pack 특수 / 'C' = 500kg 2pack
             'packing_type': (lambda v: v if v in ('A', 'B', 'C') else '')(
                 str(packing.get('packing_type') or '').strip().upper()

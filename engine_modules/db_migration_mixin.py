@@ -82,13 +82,13 @@ class DatabaseMigrationMixin:
         # Phase 4-A 회귀 강화 패치
         self._migrate_v872_inventory_weight_floor_insert()  # v8.7.2 P1: INSERT 경로 음수 방지 트리거
         self._migrate_v872_sold_table_dedup_index()         # v8.7.2 P4: sold_table 중복 방지 인덱스
-        self._migrate_v868_pending_workflow_columns()        # v8.6.8: PENDING 워크플로우 컬럼 (port_date, inbound_type)
-        self._migrate_v868_packing_type_column()             # v8.6.8: 팔레트 구성 (1pack/2pack) 컬럼
+        self._migrate_v868_pending_workflow_columns()        # v8.6.9: PENDING 워크플로우 컬럼 (port_date, inbound_type)
+        self._migrate_v868_packing_type_column()             # v8.6.9: 팔레트 구성 (1pack/2pack) 컬럼
         self._migrate_v873_carrier_field_coord()             # v8.7.3: BL 선사별 좌표 룰 DB화
 
     def _migrate_v868_packing_type_column(self) -> None:
         """
-        v8.6.8: inventory.packing_type 및 inbound_template.packing_type 컬럼 추가.
+        v8.6.9: inventory.packing_type 및 inbound_template.packing_type 컬럼 추가.
 
         팔레트 구성 (셀 점유 계산용):
           - 'A' = 1,000kg 1pack (1팔레트 1톤백)
@@ -104,18 +104,18 @@ class DatabaseMigrationMixin:
             cols = {r[1].lower() for r in self.execute("PRAGMA table_info(inventory)").fetchall()}
             if "packing_type" not in cols:
                 self.execute("ALTER TABLE inventory ADD COLUMN packing_type TEXT DEFAULT ''")
-                logger.info("[v8.6.8] inventory.packing_type 컬럼 추가")
+                logger.info("[v8.6.9] inventory.packing_type 컬럼 추가")
             tpl_cols = {r[1].lower() for r in self.execute("PRAGMA table_info(inbound_template)").fetchall()}
             if "packing_type" not in tpl_cols:
                 self.execute("ALTER TABLE inbound_template ADD COLUMN packing_type TEXT DEFAULT ''")
-                logger.info("[v8.6.8] inbound_template.packing_type 컬럼 추가")
+                logger.info("[v8.6.9] inbound_template.packing_type 컬럼 추가")
             self.execute(
                 "UPDATE inbound_template "
                 "SET packing_type = CASE WHEN bag_weight_kg=1000 THEN 'A' ELSE 'C' END "
                 "WHERE COALESCE(packing_type, '') = ''"
             )
         except Exception as e:
-            logger.warning(f"[v8.6.8] packing_type 컬럼 마이그레이션 실패: {e}")
+            logger.warning(f"[v8.6.9] packing_type 컬럼 마이그레이션 실패: {e}")
 
     def _migrate_v873_carrier_field_coord(self) -> None:
         """
@@ -239,7 +239,7 @@ class DatabaseMigrationMixin:
 
     def _migrate_v868_pending_workflow_columns(self) -> None:
         """
-        v8.6.8: inventory 테이블에 port_date, inbound_type 컬럼 추가.
+        v8.6.9: inventory 테이블에 port_date, inbound_type 컬럼 추가.
 
         PENDING 워크플로우 지원:
           - port_date: 포트 입항일 (파싱 시점 기록)
@@ -250,12 +250,12 @@ class DatabaseMigrationMixin:
             cols = {r[1].lower() for r in self.execute("PRAGMA table_info(inventory)").fetchall()}
             if "port_date" not in cols:
                 self.execute("ALTER TABLE inventory ADD COLUMN port_date TEXT")
-                logger.info("[v8.6.8] inventory.port_date 컬럼 추가")
+                logger.info("[v8.6.9] inventory.port_date 컬럼 추가")
             if "inbound_type" not in cols:
                 self.execute("ALTER TABLE inventory ADD COLUMN inbound_type TEXT DEFAULT 'DIRECT'")
-                logger.info("[v8.6.8] inventory.inbound_type 컬럼 추가")
+                logger.info("[v8.6.9] inventory.inbound_type 컬럼 추가")
         except Exception as e:
-            logger.warning(f"[v8.6.8] PENDING 워크플로우 컬럼 마이그레이션 실패: {e}")
+            logger.warning(f"[v8.6.9] PENDING 워크플로우 컬럼 마이그레이션 실패: {e}")
 
     def _migrate_v633_allocation_export_type(self) -> None:
         """

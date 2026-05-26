@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """SQM 재고관리 시스템 버전 정보"""
 
-__version__ = "8.6.8"
-VERSION = "8.6.8"
-VERSION_TUPLE = (8, 6, 8)
-RELEASE_DATE = "2026-05-12"
+__version__ = "8.6.9"
+VERSION = "8.6.9"
+VERSION_TUPLE = (8, 6, 9)
+RELEASE_DATE = "2026-05-26"
 APP_NAME = "SQM 재고관리 시스템"
 APP_NAME_EN = "SQM Inventory Management System"
-BUILD_DATE = "2026-05-12"
+BUILD_DATE = "2026-05-26"
 BUILD_NOTE = (
-    "v8.6.8 (2026-05-12)\n"
+    "v8.6.9 (2026-05-26)\n"
     "분리창·안정성·편의성 통합 개선\n"
     "  [FEAT] Pending -> AVAILABLE 입고 확정 UI (행별 + 일괄 확정)\n"
     "  [FEAT] AI 채팅 + 정합성 검사 분리 창 (드래그 가능)\n"

@@ -483,7 +483,7 @@ class ReturnMixin:
 
                 result['success'] = result['returned'] > 0
 
-                # v8.6.8: 반품 후 영향 받은 셀 무결성 비파괴 검증
+                # v8.6.9: 반품 후 영향 받은 셀 무결성 비파괴 검증
                 try:
                     from engine_modules.warehouse_cell_logic import check_cell_invariants
                     affected_lots = {
