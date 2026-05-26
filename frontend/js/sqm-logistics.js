@@ -289,6 +289,103 @@
 
   // v868 fix (2026-05-16): Outbound 그룹화 모드 (LOT / 고객사 / 출고일)
   window._outboundViewMode = window._outboundViewMode || 'lot';
+  window._outboundPeriod   = window._outboundPeriod   || 'all'; // v869: 기간 필터
+
+  /* v869: SOLD 그룹Â·기간 칩 버튼 헬퍼 */
+  // v869: 클릭 시 DOM 즉시 하이라이트 업데이트
+  window._soldActivateBtn = function(type, val) {
+    var cls   = type === 'grp' ? '.sold-grp-btn' : '.sold-per-btn';
+    var actS  = type === 'grp'
+      ? 'font-size:12px;padding:3px 10px;background:var(--accent,#3b82f6);color:#fff;border:1px solid var(--accent,#3b82f6);border-radius:4px;cursor:pointer;'
+      : 'font-size:12px;padding:3px 10px;background:#f59e0b;color:#111;border:1px solid #f59e0b;border-radius:4px;cursor:pointer;font-weight:700;';
+    var inS   = 'font-size:12px;padding:3px 10px;background:var(--surface,#1e293b);color:var(--text-muted);border:1px solid var(--border,#334155);border-radius:4px;cursor:pointer;';
+    var dataKey = type === 'grp' ? 'data-grp' : 'data-per';
+    document.querySelectorAll(cls).forEach(function(btn) {
+      btn.style.cssText = btn.getAttribute(dataKey) === val ? actS : inS;
+    });
+  };
+  function _soldGroupBtn(val, label, cur) {
+    var bg = cur === val
+      ? 'background:var(--accent,#3b82f6);color:#fff;border-color:var(--accent,#3b82f6);'
+      : 'background:var(--surface,#1e293b);color:var(--text-muted);border-color:var(--border,#334155);';
+    return '<button class="btn sold-grp-btn" data-grp="' + val + '" style="font-size:12px;padding:3px 10px;' + bg + '"'
+      + ' onclick="window._outboundViewMode=\'' + val + '\';window._soldActivateBtn(\'grp\',\'' + val + '\');window._soldSearch()">'
+      + label + '</button>';
+  }
+  function _soldPeriodBtn(val, label, cur) {
+    var bg = cur === val
+      ? 'background:#f59e0b;color:#111;border-color:#f59e0b;font-weight:700;'
+      : 'background:var(--surface,#1e293b);color:var(--text-muted);border-color:var(--border,#334155);';
+    var tog = val === 'custom'
+      ? "var el=document.getElementById('sold-custom-dates');if(el)el.style.display='flex';"
+      : "var el=document.getElementById('sold-custom-dates');if(el)el.style.display='none';";
+    var autoSearch = val !== 'custom' ? 'window._soldSearch();' : '';
+    return '<button class="btn sold-per-btn" data-per="' + val + '" style="font-size:12px;padding:3px 10px;' + bg + '"'
+      + ' onclick="window._outboundPeriod=\'' + val + '\';window._soldActivateBtn(\'per\',\'' + val + '\');' + tog + autoSearch + '">'
+      + label + '</button>';
+  }
+
+  /* v869: SOLD 보기 드롭다운 헬퍼 ────────────────────────── */
+  function _soldViewMenuHtml(curMode) {
+    var labels = { lot: 'LOT별', container: '컨테이너별', bl: 'BL별', customer: '고객사별', date: '출고일별' };
+    var curLabel = labels[curMode] || 'LOT별';
+    function mi(val, icon, label) {
+      var isAct = curMode === val;
+      var actS = isAct ? 'background:rgba(59,130,246,.15);color:var(--accent);font-weight:700;' : 'color:var(--text);';
+      var leaveS = isAct ? 'rgba(59,130,246,.15)' : 'none';
+      return '<button style="display:block;width:100%;text-align:left;padding:7px 14px;background:none;border:none;cursor:pointer;font-size:13px;' + actS + '"'
+        + ' onmouseenter="this.style.background=\'rgba(59,130,246,.10)\'"'
+        + ' onmouseleave="this.style.background=\'' + leaveS + '\'"'
+        + ' onclick="window._outboundViewMode=\'' + val + '\';window._closeSoldViewMenu();'
+        + (val === 'date' ? 'window._soldSetMonth();' : 'window._soldSearch();') + '">'
+        + icon + '\u00a0' + label + '</button>';
+    }
+    var subBtn = function(label, action) {
+      return '<button style="display:block;width:100%;text-align:left;padding:5px 14px 5px 26px;background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-muted)"'
+        + ' onmouseenter="this.style.color=\'var(--accent)\'"'
+        + ' onmouseleave="this.style.color=\'var(--text-muted)\'"'
+        + ' onclick="window._outboundViewMode=\'date\';window._closeSoldViewMenu();' + action + '">' + label + '</button>';
+    };
+    var dateSect =
+      '<div style="border-top:1px solid var(--border);margin:4px 0 2px">'
+      + '<div style="padding:5px 14px 2px;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">출고일별</div>'
+      + subBtn('오늘', 'window._soldSetToday();')
+      + subBtn('이번주', 'window._soldSetWeek();')
+      + subBtn('이번달', 'window._soldSetMonth();')
+      + subBtn('기간 지정...', 'window._showSoldDateRange();window._soldSearch();')
+      + '</div>';
+    var menu =
+      '<div id="sold-view-menu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:9999;'
+      + 'background:var(--panel,#1e293b);border:1px solid var(--border,#334155);border-radius:7px;'
+      + 'min-width:165px;box-shadow:0 6px 20px rgba(0,0,0,.35);padding:4px 0">'
+      + mi('lot', '📦', 'LOT별')
+      + mi('container', '🚢', '컨테이너별')
+      + mi('bl', '📄', 'BL별')
+      + mi('customer', '🏢', '고객사별')
+      + dateSect
+      + '</div>';
+    return '<div style="position:relative;display:inline-block;flex-shrink:0">'
+      + '<button class="btn btn-primary" style="font-size:13px;padding:4px 12px;font-weight:600" onclick="window._soldViewToggle(event)">보기 (' + curLabel + ') ▾</button>'
+      + menu
+      + '</div>';
+  }
+  window._soldViewToggle = function(e) {
+    e.stopPropagation();
+    var m = document.getElementById('sold-view-menu');
+    if (!m) return;
+    m.style.display = (m.style.display === 'none' || !m.style.display) ? 'block' : 'none';
+  };
+  window._closeSoldViewMenu = function() {
+    var m = document.getElementById('sold-view-menu');
+    if (m) m.style.display = 'none';
+  };
+  window._showSoldDateRange = function() {
+    var bar = document.getElementById('sold-date-range-bar');
+    if (bar) { bar.style.display = 'flex'; }
+  };
+  document.addEventListener('click', function() {
+    if (window._closeSoldViewMenu) window._closeSoldViewMenu();
+  });
 
   function _outboundModeBtn(val, label, cur) {
     var act = val === cur
@@ -301,7 +398,7 @@
   function _renderOutboundLotTableOnly(rows, baseIdx) {
     // 그룹 내부 — 헤더 포함된 컴팩트 테이블 (LOT/판매주문/고객사/톤백/중량/출고일)
     var html = '<table class="data-table" style="margin:0;font-size:12px"><thead><tr>'
-      + '<th>#</th><th>LOT No</th><th style="width:32px">⋯</th><th>판매주문No</th><th>고객사</th>'
+      + '<th>#</th><th>LOT No</th><th>판매주문No</th><th>고객사</th>'
       + '<th>톤백수</th><th>중량(kg)</th><th>출고일</th>'
       + '</tr></thead><tbody>';
     rows.forEach(function(r, i) {
@@ -310,10 +407,6 @@
         + 'onclick="window.toggleOutboundDetail(\'' + lot + '\')">'
         + '<td class="mono-cell" style="color:var(--text-muted)">' + ((baseIdx||0) + i + 1) + '</td>'
         + '<td class="mono-cell" style="color:var(--accent);font-weight:600">' + lot + '</td>'
-        + '<td style="text-align:center;padding:3px 4px;width:32px">'
-        + '<button class="btn btn-ghost btn-xs" data-lot="' + lot + '" '
-        + 'onclick="event.stopPropagation();window.showOutboundActionMenu(this)" '
-        + 'style="font-size:15px;padding:0 4px;letter-spacing:1px" title="추가기능">⋯</button></td>'
         + '<td class="mono-cell">' + escapeHtml(r.sales_order_no || '-') + '</td>'
         + '<td>' + escapeHtml(r.customer || '-') + '</td>'
         + '<td class="mono-cell" style="text-align:right">' + (r.tonbag_count || 0) + '</td>'
@@ -364,8 +457,26 @@
   }
 
   /* ── SOLD 날짜 헬퍼 ── */
+  // v8.6.9: toISOString() UTC 버그 수정 — 로컨 날짜 헬퍼
+  function _soldLocalDate(d) {
+    var y  = d.getFullYear();
+    var m  = String(d.getMonth() + 1).padStart(2, '0');
+    var dd = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + dd;
+  }
   function _soldTodayStr() {
-    return new Date().toISOString().slice(0, 10);
+    // v869: Intl 기반 KST 날짜 — PyWebView UTC 버그 우회
+    try {
+      var parts = new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).formatToParts(new Date());
+      var p = {};
+      parts.forEach(function(x){ p[x.type] = x.value; });
+      return p.year + '-' + p.month + '-' + p.day;
+    } catch(e) {
+      return _soldLocalDate(new Date()); // fallback
+    }
   }
   window._soldSetToday = function() {
     var t = _soldTodayStr();
@@ -377,11 +488,11 @@
   };
   window._soldSetWeek = function() {
     var now = new Date();
-    var mon = new Date(now);
-    mon.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    var mon = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
     var f = document.getElementById('sold-date-from');
     var to = document.getElementById('sold-date-to');
-    if (f)  f.value  = mon.toISOString().slice(0, 10);
+    if (f)  f.value  = _soldLocalDate(mon);
     if (to) to.value = _soldTodayStr();
     window._soldSearch();
   };
@@ -390,15 +501,44 @@
     var first = new Date(now.getFullYear(), now.getMonth(), 1);
     var f = document.getElementById('sold-date-from');
     var to = document.getElementById('sold-date-to');
-    if (f)  f.value  = first.toISOString().slice(0, 10);
+    if (f)  f.value  = _soldLocalDate(first);
     if (to) to.value = _soldTodayStr();
     window._soldSearch();
   };
+  window.exportSoldExcel = function() {
+    var tbl = document.getElementById('outbound-table');
+    if (!tbl) { showToast('warning', '내보낼 테이블이 없습니다'); return; }
+    var ts = new Date().toISOString().slice(0, 10);
+    if (window.exportTableToExcel) {
+      window.exportTableToExcel(tbl, 'SOLD_' + ts + '.xlsx');
+    } else {
+      showToast('warning', 'Excel 내보내기 함수를 찾을 수 없습니다');
+    }
+  };
   window._soldSearch = function() {
-    var f  = document.getElementById('sold-date-from');
-    var to = document.getElementById('sold-date-to');
-    window._outboundDateFrom = f  ? f.value  : '';
-    window._outboundDateTo   = to ? to.value : '';
+    // 기간 버튼에 따라 날짜 자동 계산
+    var p = window._outboundPeriod || 'all';
+    if (p === 'today') {
+      window._outboundDateFrom = _soldTodayStr();
+      window._outboundDateTo   = _soldTodayStr();
+    } else if (p === 'week') {
+      var now = new Date(); var mon = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7));
+      window._outboundDateFrom = _soldLocalDate(mon);
+      window._outboundDateTo   = _soldTodayStr();
+    } else if (p === 'month') {
+      var now = new Date();
+      window._outboundDateFrom = _soldLocalDate(new Date(now.getFullYear(), now.getMonth(), 1));
+      window._outboundDateTo   = _soldTodayStr();
+    } else if (p === 'custom') {
+      var f  = document.getElementById('sold-date-from');
+      var to = document.getElementById('sold-date-to');
+      window._outboundDateFrom = f  ? f.value : '';
+      window._outboundDateTo   = to ? to.value : '';
+    } else { // all
+      window._outboundDateFrom = '';
+      window._outboundDateTo   = '';
+    }
     renderPage('outbound');
   };
 
@@ -408,38 +548,43 @@
     if (!c) return;
     // v868 fix (2026-05-16): 그룹화 모드 — 헤더 토글 버튼이 참조
     var _outMode    = window._outboundViewMode || 'lot';
+    var _outPeriod  = window._outboundPeriod   || 'all';
     var _initFrom   = window._outboundDateFrom || '';
     var _initTo     = window._outboundDateTo   || '';
     c.innerHTML = [
       '<section class="page" data-page="outbound">',
-      '<div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;padding:8px 0 10px;overflow-x:auto">',
-      '  <h2 style="margin:0;white-space:nowrap;font-size:15px">📤 출고 완료 (SOLD)</h2>',
-      '  <div style="display:flex;gap:3px;flex-shrink:0">' +
-         _outboundModeBtn('lot', 'LOT별', _outMode) +
-         _outboundModeBtn('customer', '고객사별', _outMode) +
-         _outboundModeBtn('date', '출고일별', _outMode) +
-      '  </div>',
-      '  <span style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0"></span>',
-      '  <input type="date" id="sold-date-from" value="' + (_initFrom || _soldTodayStr()) + '"'
-        + ' style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;background:var(--panel);color:var(--text);width:114px;flex-shrink:0">',
-      '  <span style="font-size:12px;color:var(--text-muted);flex-shrink:0">~</span>',
-      '  <input type="date" id="sold-date-to" value="' + (_initTo   || _soldTodayStr()) + '"'
-        + ' style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;background:var(--panel);color:var(--text);width:114px;flex-shrink:0">',
-      '  <button class="btn" onclick="window._soldSetToday()" style="font-size:11px;padding:2px 6px;flex-shrink:0">오늘</button>',
-      '  <button class="btn" onclick="window._soldSetWeek()"  style="font-size:11px;padding:2px 6px;flex-shrink:0">이번주</button>',
-      '  <button class="btn" onclick="window._soldSetMonth()" style="font-size:11px;padding:2px 6px;flex-shrink:0">이번달</button>',
-      '  <button class="btn btn-primary" onclick="window._soldSearch()" style="font-size:11px;padding:2px 8px;font-weight:700;flex-shrink:0">조회</button>',
-      '  <span style="width:1px;height:20px;background:var(--border);margin:0 2px;flex-shrink:0"></span>',
-      '  <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">',
-      '    <button class="btn btn-primary" onclick="window.showOutboundPickingModal()" style="font-size:12px;padding:3px 8px">📋 Picking</button>',
-      '    <button class="btn" onclick="window.allocRevertStep(\'SOLD\')" style="font-size:11px;padding:2px 6px" title="SOLD→PICKED 되돌리기">↩ SOLD→PICKED</button>',
-      '    <button class="btn btn-secondary" onclick="window._soldSearch()" style="font-size:12px;padding:3px 6px">🔁</button>',
-      '  </div>',
+      '<div style="display:flex;align-items:center;gap:6px;padding:8px 0 10px;flex-wrap:wrap">',
+      '  <h2 style="margin:0;font-size:14px;white-space:nowrap;flex-shrink:0">📤 SOLD</h2>',
+      '  <span style="font-size:11px;color:var(--text-muted);flex-shrink:0">그룹:</span>',
+      '  ' + _soldGroupBtn('lot',       'LOT별',      _outMode) + '',
+      '  ' + _soldGroupBtn('container', '컨테이너별', _outMode) + '',
+      '  ' + _soldGroupBtn('bl',        'BL별',       _outMode) + '',
+      '  ' + _soldGroupBtn('customer',  '고객사별',   _outMode) + '',
+      '  ' + _soldGroupBtn('date',      '출고일별',   _outMode) + '',
+      '  <span style="width:1px;height:18px;background:var(--border);margin:0 2px;flex-shrink:0"></span>',
+      '  <span style="font-size:11px;color:var(--text-muted);flex-shrink:0">기간:</span>',
+      '  ' + _soldPeriodBtn('all',   '전체',   _outPeriod) + '',
+      '  ' + _soldPeriodBtn('today', '오늘',   _outPeriod) + '',
+      '  ' + _soldPeriodBtn('week',  '이번주', _outPeriod) + '',
+      '  ' + _soldPeriodBtn('month', '이번달', _outPeriod) + '',
+      '  ' + _soldPeriodBtn('custom','기간지정', _outPeriod) + '',
+      '  <span id="sold-custom-dates" style="' + (_outPeriod==='custom' ? 'display:inline-flex' : 'display:none') + ';align-items:center;gap:4px;flex-shrink:0">',
+      '    <input type="date" id="sold-date-from" value="' + (_initFrom || _soldTodayStr()) + '"'
+        + ' style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;background:var(--panel);color:var(--text);width:110px">',
+      '    <span style="font-size:11px">~</span>',
+      '    <input type="date" id="sold-date-to" value="' + (_initTo || _soldTodayStr()) + '"'
+        + ' style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;background:var(--panel);color:var(--text);width:110px">',
+      '  </span>',
+      '  <button class="btn btn-primary" onclick="window._soldSearch()" style="font-size:12px;padding:3px 12px;font-weight:700;flex-shrink:0">🔍 조회</button>',
+      '  <button class="btn" onclick="window.exportSoldExcel()" style="font-size:12px;padding:3px 10px;flex-shrink:0">📊 Excel</button>',
+      '  <span style="flex:1"></span>',
+      '  <span style="font-size:11px;color:var(--text-muted);flex-shrink:0">이전 단계로</span>',
+      '  <button class="btn" onclick="window.allocRevertStep(\'SOLD\')" style="font-size:11px;padding:2px 10px;flex-shrink:0">↩ SOLD→PICKED</button>',
       '</div>',
       '<div id="outbound-loading" style="padding:40px;text-align:center;color:var(--text-muted)">⏳ 데이터 로딩 중...</div>',
       '<div style="overflow-x:auto">',
       '  <table class="data-table" id="outbound-table" style="display:none">',
-      '  <thead><tr><th></th><th>#</th><th>LOT No</th><th style="width:32px">⋯</th><th>판매주문No</th><th>고객사</th><th>톤백수</th><th>중량(kg)</th><th>출고일</th></tr></thead>',
+      '  <thead><tr><th></th><th>#</th><th>LOT No</th><th>판매주문No</th><th>고객사</th><th>톤백수</th><th>중량(kg)</th><th>출고일</th></tr></thead>',
       '  <tbody id="outbound-tbody"></tbody>',
       '  </table>',
       '</div>',
@@ -451,11 +596,12 @@
       '</section>'
     ].join('');
 
-    var _sf = document.getElementById('sold-date-from');
-    var _st = document.getElementById('sold-date-to');
-    var _sd = (_sf && _sf.value) ? '&start_date=' + _sf.value : '';
-    var _ed = (_st && _st.value) ? '&end_date='   + _st.value : '';
-    apiGet('/api/q/sold-list?limit=1000' + _sd + _ed).then(function(res){
+    // v869: 날짜 파라미터 — _outboundDateFrom/To 기준 (period & 그룹 독립)
+    var _df = window._outboundDateFrom || '';
+    var _dt = window._outboundDateTo   || '';
+    var _sd = _df ? '&start_date=' + _df : '';
+    var _ed = _dt ? '&end_date='   + _dt : '';
+    apiGet('/api/q/sold-list?limit=2000' + _sd + _ed).then(function(res){
       if (window.getCurrentRoute() !== route) return;
       var rows = extractRows(res);
       document.getElementById('outbound-loading').style.display = 'none';
@@ -463,13 +609,17 @@
         document.getElementById('outbound-empty').style.display = 'block';
         return;
       }
-      // v868 fix (2026-05-16): 그룹 모드 분기 — 고객사별/출고일별
-      if (_outMode === 'customer' || _outMode === 'date') {
+      // v869: 그룹 모드 분기 — container/bl/customer/date
+      if (_outMode === 'customer' || _outMode === 'date' || _outMode === 'container' || _outMode === 'bl') {
         var tbl = document.getElementById('outbound-table');
         if (tbl) tbl.style.display = 'none';
         var groupHtml;
         if (_outMode === 'customer') {
-          groupHtml = _renderOutboundGroup(rows, function(r){ return r.customer || ''; }, '고객사: ', 'oc');
+          groupHtml = _renderOutboundGroup(rows, function(r){ return r.customer || '(미지정)'; }, '고객사: ', 'oc');
+        } else if (_outMode === 'container') {
+          groupHtml = _renderOutboundGroup(rows, function(r){ return r.container_no || '(CT 미지정)'; }, '컨테이너: ', 'cn');
+        } else if (_outMode === 'bl') {
+          groupHtml = _renderOutboundGroup(rows, function(r){ return r.bl_no || '(BL 미지정)'; }, 'BL: ', 'bl');
         } else {
           groupHtml = _renderOutboundGroup(rows, function(r){ return (r.sold_date || '').slice(0,10); }, '출고일: ', 'od');
         }
@@ -491,8 +641,6 @@
           '<td style="width:24px;text-align:center"><span class="outbound-expand-icon">▶</span></td>' +
           '<td class="mono-cell" style="color:var(--text-muted)">'+(i+1)+'</td>' +
           '<td class="mono-cell" style="color:var(--accent);font-weight:600">'+lot+'</td>' +
-          // v868 fix (2026-05-16): 우클릭 메뉴 버튼 추가
-          '<td style="text-align:center;padding:3px 4px;width:32px"><button class="btn btn-ghost btn-xs" data-lot="'+lot+'" onclick="event.stopPropagation();window.showOutboundActionMenu(this)" style="font-size:15px;padding:0 4px;letter-spacing:1px" title="추가기능">⋯</button></td>' +
           '<td class="mono-cell">'+escapeHtml(r.sales_order_no||'-')+'</td>' +
           '<td>'+escapeHtml(r.customer||'-')+'</td>' +
           '<td class="mono-cell" style="text-align:right">'+(r.tonbag_count||0)+'</td>' +
@@ -511,7 +659,7 @@
         });
         var _tf = document.createElement('tfoot');
         _tf.innerHTML = '<tr style="background:#FFD600;font-weight:800;color:#222;font-size:19px">'
-          + '<td colspan="4" style="text-align:right;padding:6px 10px">'
+          + '<td colspan="3" style="text-align:right;padding:6px 10px">'
           + '합계 ' + rows.length + ' LOT</td>'
           + '<td></td><td></td>'
           + '<td class="mono-cell" style="text-align:right;padding:6px 8px">'
@@ -531,37 +679,6 @@
       showToast('error', '출고 현황 로드 실패');
     });
   }
-
-  // v868 fix (2026-05-16): Outbound 우클릭 메뉴 신규 — 취소 기능 (SOLD → PICKED)
-  window.showOutboundActionMenu = function(btn) {
-    var lot = btn.dataset.lot || '';
-    if (window._openContextMenu) {
-      window._openContextMenu(btn, [
-        { icon:'📋', label:'LOT 상세 보기', fn:function(){ if(window.showLotDetail) window.showLotDetail(lot); } },
-        { icon:'📄', label:'LOT 번호 복사', fn:function(){ navigator.clipboard && navigator.clipboard.writeText(lot); showToast('info','LOT 복사: '+lot); } },
-        '-',
-        { icon:'↩', label:'SOLD → PICKED 되돌리기', color:'#ef4444', fn:function(){
-            if (!sqmConfirm('↩ ' + lot + '\nSOLD → PICKED로 되돌리시겠습니까?')) return;
-            if (window.allocRevertStep) {
-              apiPost('/api/allocation/revert-step', { from_status: 'SOLD', lot_nos: [lot] }).then(function(){
-                showToast('success', lot + ' SOLD → PICKED 복구 완료');
-                renderPage('sold');
-              });
-            } else {
-              alert('되돌리기 함수를 찾을 수 없습니다');
-            }
-        } },
-      ]);
-    } else {
-      // _openContextMenu 미정의 시 fallback — confirm 직접 사용
-      if (sqmConfirm('↩ ' + lot + '\nSOLD → PICKED로 되돌리시겠습니까?')) {
-        apiPost('/api/allocation/revert-step', { from_status: 'SOLD', lot_nos: [lot] }).then(function(){
-          showToast('success', lot + ' SOLD → PICKED 복구 완료');
-          renderPage('sold');
-        });
-      }
-    }
-  };
 
   var _outboundExpandedLot = null;
   window.toggleOutboundDetail = function(lotNo) {
@@ -626,14 +743,14 @@
 
   function renderReturnRows(rows, container) {
     if (!rows.length) {
-      container.innerHTML = '<div class="empty" style="padding:60px;text-align:center;color:var(--text-muted)">🔄 반품 재고 없음</div>';
+      container.innerHTML = '<div class="empty" style="padding:60px;text-align:center;color:var(--text-muted)">🔄 Return 재고 없음</div>';
       return;
     }
     var sumBal = 0;
     rows.forEach(function(r){ if (r.balance != null) sumBal += Number(r.balance); });
     var html = '<section style="padding:12px 16px">'
       + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap">'
-      + '<h2 style="margin:0;font-size:16px;color:#a855f7">🔄 Return 재고 — 반품 입고 · 검사 대기</h2>'
+      + '<h2 style="margin:0;font-size:16px;color:#a855f7">🔄 Return 재고 — 입고 · 검사 대기</h2>'
       + '<span style="font-size:12px;color:var(--text-muted)">' + rows.length + ' LOT · ' + fmtN(sumBal) + ' MT</span>'
       + '<span style="font-size:11px;color:#f59e0b;background:rgba(245,158,11,0.12);padding:2px 8px;border-radius:4px">⚠ 검사완료 후 수동으로 AVAILABLE 전환</span>'
       + '<button class="btn btn-ghost" style="font-size:12px;margin-left:auto" onclick="window.loadReturnPage()">🔄 새로고침</button>'

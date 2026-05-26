@@ -1,5 +1,5 @@
 // SQM v8.6.9
-// 테이블 2개: [좌] 재고 및 확인 (판매가능/판매배정/판매화물/출고완료/반품대기/합계/샘플)
+// 테이블 2개: [좌] 재고 및 확인 (판매가능/판매배정/판매화물/출고완료/Return 대기/합계/샘플)
 //             [우] LOT별 (기초재고/입고/출고/기말재고/검증)
 import { apiGet } from '../api-client.js';
 
@@ -22,7 +22,7 @@ export async function mount(container) {
             <th style="width:40px">순번</th>
             <th style="text-align:left;min-width:180px">Product</th>
             <th>판매가능</th><th>판매배정</th><th>판매화물</th>
-            <th>출고완료</th><th>반품대기</th><th>합계</th><th>샘플</th>
+            <th>출고완료</th><th>Return 대기</th><th>합계</th><th>샘플</th>
           </tr></thead>
           <tbody id="dash-products"></tbody>
         </table>

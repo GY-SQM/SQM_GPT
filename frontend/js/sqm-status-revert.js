@@ -290,6 +290,7 @@
 
   function injectPanel() {
     var route = currentRoute();
+    if (route === 'outbound' || route === 'available' || route === 'allocation' || route === 'picked') return;
     var cfg = configForRoute(route);
     var c = document.getElementById('page-container');
     if (!cfg || !c) return;

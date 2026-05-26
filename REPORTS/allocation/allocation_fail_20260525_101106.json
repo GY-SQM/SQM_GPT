@@ -1,0 +1,189 @@
+{
+  "source_file": "alloc_test.xlsx",
+  "saved_at": "2026-05-25 10:11:06",
+  "error_count": 20,
+  "errors": [
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021635 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021636 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021637 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021646 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021647 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021651 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021652 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021653 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021654 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021655 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021668 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021714 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021716 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021717 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021718 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021719 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021720 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021721 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021722 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+    "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021723 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)"
+  ],
+  "error_details": [
+    {
+      "line_no": 1,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021635 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021635",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 2,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021636 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021636",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 3,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021637 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021637",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 4,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021646 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021646",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 5,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021647 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021647",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 6,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021651 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021651",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 7,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021652 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021652",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 8,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021653 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021653",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 9,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021654 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021654",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 10,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021655 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021655",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 11,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021668 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021668",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 12,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021714 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021714",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 13,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021716 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021716",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 14,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021717 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021717",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 15,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021718 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021718",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 16,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021719 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021719",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 17,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021720 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021720",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 18,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021721 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021721",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 19,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021722 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021722",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    },
+    {
+      "line_no": 20,
+      "fail_code": "LOT_CAPACITY_EXCEEDED",
+      "reason": "[LOT_CAPACITY_EXCEEDED] LOT 가용재고 초과: 1126021723 현재가용=0kg, 기활성배정=0kg, 신규요청=5000kg (합계=5000kg > 가용)",
+      "lot_no": "1126021723",
+      "sold_to": "TEST CUSTOMER",
+      "qty_mt": 5.0
+    }
+  ]
+}

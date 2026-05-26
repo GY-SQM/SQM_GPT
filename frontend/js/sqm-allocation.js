@@ -19,7 +19,9 @@
   var _allocState = {
     currentFilter: 'all',
     rows: [],
-    selectedLots: new Set()
+    selectedLots: new Set(),
+    searchQ: '',
+    searchCust: ''
   };
 
   function allocStatusPalette(status) {
@@ -40,22 +42,22 @@
     c.innerHTML = [
       '<section class="page" data-page="allocation">',
       /* ── 헤더 ── */
-      '<div class="alloc-header" style="display:flex;align-items:center;gap:12px;padding:8px 0 8px">',
-      '  <h2 style="margin:0">📋 판매 배정 (Allocation)</h2>',
-      '  <span id="alloc-summary-label" style="color:var(--text-muted);font-size:.9rem"></span>',
-      '  <div style="margin-left:auto;display:flex;gap:6px;align-items:center">',
-      '    <button class="btn btn-primary" onclick="window.allocUploadExcel()">📂 Excel 업로드</button>',
-      '    <button class="btn btn-danger" onclick="window.allocCancelSelected()">❌ 배정 취소</button>',
-      '    <button class="btn" onclick="window.allocPickSelected()" title="RESERVED → PICKED">📦 PICKED</button>',
-      '    <button class="btn" onclick="window.allocConfirmSelected()" title="PICKED → SOLD">🔒 SOLD</button>',
-      '    <button class="btn btn-secondary" onclick="window.showAllocMoreMenu(this)" title="추가 작업">⋯ 더보기</button>',
-      '    <button class="btn btn-secondary" onclick="renderPage(\'allocation\')">🔁 새로고침</button>',
-      '  </div>',
+      '<div class="alloc-header" style="display:flex;align-items:center;gap:6px;padding:8px 0 10px;flex-wrap:wrap">',
+      '  <h2 style="margin:0;font-size:14px;white-space:nowrap;flex-shrink:0">📋 ALLOCATION</h2>',
+      '  <span id="alloc-summary-label" style="font-size:11px;color:var(--text-muted)"></span>',
+      '  <span style="flex:1"></span>',
+      '  <span style="font-size:11px;color:var(--text-muted);flex-shrink:0">이전 단계로</span>',
+      '  <button class="btn" style="font-size:12px;padding:3px 10px;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid #ef444455;border-radius:4px" onclick="window.allocRevertStep(\'RESERVED\')">↩ →AVAILABLE</button>',
+      '  <button class="btn" style="font-size:12px;padding:3px 10px;background:var(--accent,#3b82f6);color:#fff;border:1px solid var(--accent,#3b82f6);border-radius:4px" onclick="window.allocUploadExcel()">📂 Excel 업로드</button>',
+      '  <button class="btn" style="font-size:12px;padding:3px 10px;border-radius:4px" onclick="renderPage(\'allocation\')">🔁 새로고침</button>',
       '</div>',
-      /* ── 단계 되돌리기 ── */
-      '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 10px;background:var(--panel);border:1px solid var(--panel-border);border-radius:6px;margin-bottom:8px">',
-      '  <span style="font-size:12px;font-weight:600;white-space:nowrap">↩ 단계 되돌리기:</span>',
-      '  <button class="btn" onclick="window.allocRevertStep(\'RESERVED\')" style="font-size:12px">RESERVED → AVAILABLE</button>',
+      '<div style="display:flex;align-items:center;gap:6px;padding:6px 0 8px;flex-wrap:wrap;border-bottom:1px solid var(--border,#334155);margin-bottom:8px">',
+      '  <span style="font-size:11px;color:var(--text-muted);flex-shrink:0">🔍 검색</span>',
+      '  <input id="alloc-q" type="text" placeholder="LOT · BL · Sale Ref · SAP" style="font-size:12px;padding:3px 8px;background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:4px;color:var(--text-primary);width:160px" oninput="window._allocFilter()">',
+      '  <span style="font-size:11px;color:var(--text-muted);flex-shrink:0">고객사</span>',
+      '  <input id="alloc-cust" type="text" placeholder="고객사 이름" style="font-size:12px;padding:3px 8px;background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:4px;color:var(--text-primary);width:120px" oninput="window._allocFilter()">',
+      '  <button class="btn" style="font-size:12px;padding:3px 10px;border-radius:4px" onclick="window._allocFilterReset()">✕ 초기화</button>',
+      '  <span id="alloc-search-count" style="font-size:11px;color:var(--text-muted)"></span>',
       '</div>',
       /* ── 로딩 / 빈 상태 ── */
       '<div id="alloc-loading" style="padding:40px;text-align:center;color:var(--text-muted)">⏳ 데이터 로딩 중...</div>',
@@ -119,9 +121,19 @@
   /* ── 테이블 렌더 (필터 적용) ────────────────────────────────────── */
   function _renderAllocTable() {
     var filter = _allocState.currentFilter;
+    var _sQ = (_allocState.searchQ||'').toLowerCase().trim();
+    var _sC = (_allocState.searchCust||'').toLowerCase().trim();
     var rows = _allocState.rows.filter(function(r){
-      if (filter === 'all') return true;
-      return (r.status || 'RESERVED').toUpperCase() === filter;
+      if (filter !== 'all' && (r.status||'RESERVED').toUpperCase() !== filter) return false;
+      if (_sQ) {
+        var _t = [(r.lot_no||''),(r.bl_no||''),(r.sale_ref||''),(r.sap_no||''),(r.product||'')].join(' ').toLowerCase();
+        if (_t.indexOf(_sQ) === -1) return false;
+      }
+      if (_sC) {
+        var _c = (r.customer||r.sold_to||'').toLowerCase();
+        if (_c.indexOf(_sC) === -1) return false;
+      }
+      return true;
     });
     var tbody = document.getElementById('alloc-summary-tbody');
     var tfoot = document.getElementById('alloc-summary-tfoot');
@@ -948,4 +960,22 @@
   window.showImportAllocationTemplateModal = showImportAllocationTemplateModal;
 
   window.loadAllocationPage = loadAllocationPage;
+
+  window._allocFilter = function() {
+    _allocState.searchQ = (document.getElementById('alloc-q')||{value:''}).value;
+    _allocState.searchCust = (document.getElementById('alloc-cust')||{value:''}).value;
+    _renderAllocTable();
+    var lbl = document.getElementById('alloc-summary-label');
+    var cnt = document.getElementById('alloc-search-count');
+    if (cnt && lbl) cnt.textContent = lbl.textContent;
+  };
+
+  window._allocFilterReset = function() {
+    _allocState.searchQ = ''; _allocState.searchCust = '';
+    var el;
+    el = document.getElementById('alloc-q');    if (el) el.value = '';
+    el = document.getElementById('alloc-cust'); if (el) el.value = '';
+    el = document.getElementById('alloc-search-count'); if (el) el.textContent = '';
+    _renderAllocTable();
+  };
 })();

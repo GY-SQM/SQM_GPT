@@ -149,25 +149,34 @@
     var pickedMode = window._pickedViewMode || 'lot';
     function _pickedModeBtnHtml(val, label, cur) {
       var act = val === cur
-        ? 'background:var(--accent,#3b82f6);color:#fff;border-color:var(--accent,#3b82f6);'
-        : 'background:var(--surface,#1e293b);color:var(--text-muted);border-color:var(--border,#334155);';
-      return '<button class="btn" style="font-size:12px;padding:4px 10px;' + act + '" '
+        ? 'background:var(--accent,#3b82f6);color:#fff;border:1px solid var(--accent,#3b82f6);border-radius:4px;'
+        : 'background:var(--surface,#1e293b);color:var(--text-muted);border:1px solid var(--border,#334155);border-radius:4px;';
+      return '<button class="btn" style="font-size:12px;padding:3px 10px;cursor:pointer;' + act + '" '
         + 'onclick="window._pickedViewMode=\'' + val + '\';window.loadPickedPage()">' + label + '</button>';
     }
     c.innerHTML = [
       '<section class="page" data-page="picked">',
-      '<div style="display:flex;align-items:center;gap:12px;padding:8px 0 12px;flex-wrap:wrap">',
-      '  <h2 style="margin:0">🚛 Picked - 피킹 완료 (화물 결정)</h2>',
-      '  <div style="display:flex;gap:4px;margin-left:8px">',
-      '    ' + _pickedModeBtnHtml('lot', 'LOT별', pickedMode),
-      '    ' + _pickedModeBtnHtml('customer', '고객사별', pickedMode),
-      '    ' + _pickedModeBtnHtml('date', '입고일별', pickedMode),
-      '  </div>',
-      '  <button class="btn" style="font-size:12px;padding:4px 10px;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid #ef444455" onclick="window.allocRevertStep(\'PICKED\')" title="PICKED 상태를 RESERVED로 되돌립니다">↩️ 선택 취소(→RESERVED)</button>',
-      '  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">',
-      '    <button class="btn btn-secondary" onclick="window.exportPickedExcel()" style="font-size:12px" title="현재 Picked 데이터를 Excel로 내보냅니다">📊 Excel 내보내기</button>',
-      '    <button class="btn btn-secondary" onclick="renderPage(\'picked\')">🔁 새로고침</button>',
-      '  </div>',
+      '<div style="display:flex;align-items:center;gap:6px;padding:8px 0 10px;flex-wrap:wrap">',
+      '  <h2 style="margin:0;font-size:14px;white-space:nowrap;flex-shrink:0">🚛 PICKED</h2>',
+      '  <span style="font-size:11px;color:var(--text-muted);flex-shrink:0">그룹:</span>',
+      '  ' + _pickedModeBtnHtml('lot', 'LOT별', pickedMode),
+      '  ' + _pickedModeBtnHtml('customer', '고객사별', pickedMode),
+      '  ' + _pickedModeBtnHtml('date', '입고일별', pickedMode),
+      '  <span style="flex:1"></span>',
+      '  <span style="font-size:11px;color:var(--text-muted);flex-shrink:0">이전 단계로</span>',
+      '  <button class="btn" style="font-size:12px;padding:3px 10px;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid #ef444455;border-radius:4px" onclick="window.allocRevertStep(\'PICKED\')" title="PICKED→RESERVED">↩ PICKED→RESERVED</button>',
+      '  <button class="btn" style="font-size:12px;padding:3px 10px;border-radius:4px" onclick="window.exportPickedExcel()">📊 Excel</button>',
+      '  <button class="btn" style="font-size:12px;padding:3px 10px;border-radius:4px" onclick="renderPage(\'picked\')">🔁 새로고침</button>',
+      '</div>',
+      '<div style="display:flex;align-items:center;gap:6px;padding:6px 0 8px;flex-wrap:wrap;border-bottom:1px solid var(--border,#334155);margin-bottom:8px">',
+      '  <span style="font-size:11px;color:var(--text-muted);flex-shrink:0">🔍 검색</span>',
+      '  <input id="picked-q" type="text" placeholder="LOT · BL · 고객사" style="font-size:12px;padding:3px 8px;background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:4px;color:var(--text-primary);width:180px" oninput="window._pickedFilter()">',
+      '  <span style="font-size:11px;color:var(--text-muted);flex-shrink:0">날짜</span>',
+      '  <input id="picked-df" type="date" style="font-size:12px;padding:2px 6px;background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:4px;color:var(--text-primary)" onchange="window._pickedFilter()">',
+      '  <span style="font-size:11px;color:var(--text-muted)">~</span>',
+      '  <input id="picked-dt" type="date" style="font-size:12px;padding:2px 6px;background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:4px;color:var(--text-primary)" onchange="window._pickedFilter()">',
+      '  <button class="btn" style="font-size:12px;padding:3px 10px;border-radius:4px" onclick="window._pickedFilterReset()">✕ 초기화</button>',
+      '  <span id="picked-count" style="font-size:11px;color:var(--text-muted)"></span>',
       '</div>',
       '<div id="picked-loading" style="padding:40px;text-align:center;color:var(--text-muted)">⏳ 데이터 로딩 중...</div>',
       '<div style="overflow-x:auto">',

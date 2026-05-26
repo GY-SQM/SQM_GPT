@@ -909,7 +909,7 @@ html[data-table-preset="large"] {
 
 /* ── Sidebar (9탭) — 아이콘 50%↑, 글씨 30%↑, 흰색 진하게 ───────── */
 .sidebar {
-  width: 140px;
+  width: 170px;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--panel-border);
   display: flex; flex-direction: column;
@@ -968,8 +968,14 @@ html[data-table-preset="large"] {
 .side-child-badge {
   font-size: 10px; font-weight: 600;
   text-align: right; line-height: 1.3;
-  white-space: pre-line; flex-shrink: 0;
+  white-space: nowrap; flex-shrink: 0;
   min-width: 36px;
+}
+/* standalone side-btn 내 배지는 중앙 정렬 */
+.side-btn:not(.side-child) .side-child-badge {
+  text-align: center;
+  white-space: nowrap;
+  font-size: 10px;
 }
 .side-btn.active-parent {
   background: rgba(255,255,255,0.08);

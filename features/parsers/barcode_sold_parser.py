@@ -218,10 +218,9 @@ def parse_barcode_sold_excel(path: str) -> dict:
     # 헤더 찾기 (행 1~5 안에 'UID' 또는 '실제 위치' 컬럼이 있는 행)
     header_row = None
     col_map: dict[int, str] = {}  # {column_index_1based: 표준 키}
-    for r in range(1, min(6, ws.max_row + 1)):
+    for r, values in enumerate(ws.iter_rows(min_row=1, max_row=min(5, ws.max_row), max_col=min(ws.max_column, 30), values_only=True), start=1):
         candidate = {}
-        for c in range(1, min(ws.max_column + 1, 30) + 1):
-            cell_val = ws.cell(r, c).value
+        for c, cell_val in enumerate(values, start=1):
             key = _resolve_header(cell_val)
             if key:
                 candidate[c] = key
@@ -242,18 +241,32 @@ def parse_barcode_sold_excel(path: str) -> dict:
     # 데이터 행 파싱
     items: list[dict] = []
     skipped_empty = 0
-    for r in range(header_row + 1, ws.max_row + 1):
+    max_needed_col = max(col_map) if col_map else 1
+    blank_streak = 0
+    for r, values in enumerate(
+        ws.iter_rows(
+            min_row=header_row + 1,
+            max_row=ws.max_row,
+            max_col=max_needed_col,
+            values_only=True,
+        ),
+        start=header_row + 1,
+    ):
         row_dict: dict[str, Any] = {}
         any_value = False
         for col_idx, key in col_map.items():
-            v = ws.cell(r, col_idx).value
+            v = values[col_idx - 1] if col_idx <= len(values) else None
             if v is not None and str(v).strip() != '':
                 any_value = True
             row_dict[key] = v
 
         if not any_value:
             skipped_empty += 1
+            blank_streak += 1
+            if items and blank_streak >= 50:
+                break
             continue
+        blank_streak = 0
 
         uid = str(row_dict.get('tonbag_uid') or '').strip()
         if not uid:

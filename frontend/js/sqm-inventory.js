@@ -493,9 +493,9 @@
 
   function _pendingModeBtn(val, label, current) {
     var active = val === current
-      ? 'background:var(--accent,#3b82f6);color:#fff;border-color:var(--accent,#3b82f6);'
-      : 'background:var(--surface,#1e293b);color:var(--text-muted);border-color:var(--border,#334155);';
-    return '<button class="btn" style="font-size:12px;padding:4px 10px;' + active + '" '
+      ? 'background:var(--accent,#3b82f6);color:#fff;border:1px solid var(--accent,#3b82f6);border-radius:4px;'
+      : 'background:var(--surface,#1e293b);color:var(--text-muted);border:1px solid var(--border,#334155);border-radius:4px;';
+    return '<button class="btn" style="font-size:12px;padding:3px 10px;cursor:pointer;' + active + '" '
       + 'onclick="window._pendingViewMode=\'' + val + '\';window.loadPendingPage()">' + label + '</button>';
   }
 
@@ -521,7 +521,7 @@
       + '<th title="선박/항구 도착일 (파싱 원본)">⚓ 입항일</th>'
       + '<th title="실제 창고 반입 예정일 (클릭하여 편집)">🏭 실제 입고일</th>'
       + '<th>WH</th>'
-      + '</tr></thead><tbody>';
+      + '</tr></thead><tbody id="pend-lot-tbody">';
     html += rows.map(function(r, i) {
       var lotSafe = escapeHtml(r.lot_no || '');
       var netMt = r.net_weight != null ? fmtN(r.net_weight / 1000) : '-';
@@ -580,7 +580,7 @@
       var arrivalRef = _arrivals.length ? _arrivals.slice(0, 3).join(', ') : '-';
       var summary = opts.summary ? opts.summary(key, lots) : '';
 
-      html += '<div style="margin-bottom:12px;border:1px solid var(--border,#334155);border-radius:8px;overflow:hidden">'
+      html += '<div data-pend-grp="1" style="margin-bottom:12px;border:1px solid var(--border,#334155);border-radius:8px;overflow:hidden">'
         + '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface,#1e293b);cursor:pointer;flex-wrap:wrap" '
         + 'onclick="window._togglePendingGroup(\'' + groupId + '\')">'
         + '<strong style="color:var(--text);font-family:monospace">' + escapeHtml(key) + '</strong>'
@@ -663,18 +663,26 @@
       var rows = Array.isArray(res) ? res : (res.data || res.rows || []);
       var mode = window._pendingViewMode || 'lot';
       var html = '<section style="padding:12px 16px">'
-        + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">'
-        + '<h2 style="margin:0;font-size:16px;color:#94a3b8">⏳ Pending — 포트 입항 대기 (참고용, 재고 미포함)</h2>'
-        + '<span style="font-size:12px;color:var(--text-muted)">' + rows.length + ' LOT</span>'
-        + (window.SQMSummary ? window.SQMSummary.buildHeaderHTML(window.SQMSummary.compute(rows, {qtyField:function(r){return Number(r.net_weight||0)/1000;}, tonbagCountField:'mxbg_pallet'})) : '')
-        + '<div style="display:flex;gap:4px;margin-left:auto">'
-        + _pendingModeBtn('date', '📅 도착일별', mode)
-        + _pendingModeBtn('container', '📦 컨테이너별', mode)
-        + _pendingModeBtn('lot', '🔢 LOT별', mode)
-        + '</div>'
-        + '<button class="btn btn-ghost" style="font-size:12px" onclick="window.loadPendingPage()">🔄 새로고침</button>'
-        + '<button class="btn btn-secondary" style="font-size:12px;padding:4px 12px" onclick="window.exportPendingExcel()" title="현재 화면 Pending 데이터를 Excel로 내보냅니다">📊 Excel 내보내기</button>'
-        + '<button class="btn" style="background:var(--accent,#3b82f6);color:#fff;font-size:12px;padding:4px 12px" onclick="window.bulkConfirmPending()">✅ 선택 일괄 확정</button>'
+        + '<div style="display:flex;align-items:center;gap:6px;padding:8px 0 10px;flex-wrap:wrap">'
+        + '<h2 style="margin:0;font-size:14px;white-space:nowrap;flex-shrink:0">⏳ PENDING</h2>'
+        + '<span style="font-size:11px;color:var(--text-muted);flex-shrink:0">그룹:</span>'
+        + _pendingModeBtn('date', '도착일별', mode)
+        + _pendingModeBtn('container', '컨테이너별', mode)
+        + _pendingModeBtn('lot', 'LOT별', mode)
+        + '<span style="flex:1"></span>'
+        + '<button class="btn" style="font-size:12px;padding:3px 10px;background:var(--accent,#3b82f6);color:#fff;border:1px solid var(--accent,#3b82f6);border-radius:4px" onclick="window.bulkConfirmPending()">✅ 일괄확정</button>'
+        + '<button class="btn" style="font-size:12px;padding:3px 10px;border-radius:4px" onclick="window.exportPendingExcel()">📊 Excel</button>'
+        + '<button class="btn" style="font-size:12px;padding:3px 10px;border-radius:4px" onclick="window.loadPendingPage()">🔄 새로고침</button>'
+        + '</div>';
+      html += '<div style="display:flex;align-items:center;gap:6px;padding:6px 0 8px;flex-wrap:wrap;border-bottom:1px solid var(--border,#334155);margin-bottom:8px">'
+        + '<span style="font-size:11px;color:var(--text-muted);flex-shrink:0">🔍 검색</span>'
+        + '<input id="pend-q" type="text" placeholder="LOT · BL · 컨테이너 · 선박" style="font-size:12px;padding:3px 8px;background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:4px;color:var(--text-primary);width:180px" oninput="window._pendingFilter()">'
+        + '<span style="font-size:11px;color:var(--text-muted);flex-shrink:0">입항일</span>'
+        + '<input id="pend-df" type="date" style="font-size:12px;padding:2px 6px;background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:4px;color:var(--text-primary)" onchange="window._pendingFilter()">'
+        + '<span style="font-size:11px;color:var(--text-muted)">~</span>'
+        + '<input id="pend-dt" type="date" style="font-size:12px;padding:2px 6px;background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:4px;color:var(--text-primary)" onchange="window._pendingFilter()">'
+        + '<button class="btn" style="font-size:12px;padding:3px 10px;border-radius:4px" onclick="window._pendingFilterReset()">✕ 초기화</button>'
+        + '<span id="pend-count" style="font-size:11px;color:var(--text-muted)"></span>'
         + '</div>';
       if (!rows.length) {
         html += '<div class="empty" style="padding:60px;text-align:center;color:var(--text-muted);font-size:3em;font-weight:600;line-height:1.4">⏳ 입고 대기 중인 화물 없음</div></section>';
@@ -737,6 +745,55 @@
 
   window.loadPendingPage = loadPendingPage;
 
+  window._pendingFilter = function() {
+    var q = ((document.getElementById('pend-q')||{}).value||'').toLowerCase().trim();
+    var df = (document.getElementById('pend-df')||{}).value||'';
+    var dt = (document.getElementById('pend-dt')||{}).value||'';
+    var countEl = document.getElementById('pend-count');
+    var mode = window._pendingViewMode || 'lot';
+    var vis = 0, total = 0;
+    if (mode === 'lot') {
+      var tbody = document.getElementById('pend-lot-tbody');
+      if (!tbody) return;
+      var trs = tbody.querySelectorAll('tr');
+      trs.forEach(function(row) {
+        var txt = row.textContent.toLowerCase();
+        var textOk = !q || txt.indexOf(q) !== -1;
+        var cells = row.cells;
+        var dateStr = cells && cells.length > 13 ? cells[13].textContent.trim() : '';
+        var dMatch = dateStr.match(/(\d{4}-\d{2}-\d{2})/);
+        var d = dMatch ? dMatch[1] : '';
+        var dateOk = (!df || !d || d >= df) && (!dt || !d || d <= dt);
+        var show = textOk && dateOk;
+        row.style.display = show ? '' : 'none';
+        total++; if (show) vis++;
+      });
+    } else {
+      var groups = document.querySelectorAll('[data-pend-grp]');
+      groups.forEach(function(g) {
+        var txt = g.textContent.toLowerCase();
+        var textOk = !q || txt.indexOf(q) !== -1;
+        var dateOk = true;
+        if (df || dt) {
+          var dates = txt.match(/\d{4}-\d{2}-\d{2}/g) || [];
+          if (dates.length) { dateOk = dates.some(function(d){ return (!df||d>=df)&&(!dt||d<=dt); }); }
+        }
+        var show = textOk && dateOk;
+        g.style.display = show ? '' : 'none';
+        total++; if (show) vis++;
+      });
+    }
+    if (countEl) countEl.textContent = vis + '/' + total + '건';
+  };
+
+  window._pendingFilterReset = function() {
+    var el;
+    el = document.getElementById('pend-q');  if (el) el.value = '';
+    el = document.getElementById('pend-df'); if (el) el.value = '';
+    el = document.getElementById('pend-dt'); if (el) el.value = '';
+    el = document.getElementById('pend-count'); if (el) el.textContent = '';
+    window._pendingFilter();
+  };
   window._togglePendingGroup = function(id) {
     var el = document.getElementById(id);
     if (!el) return;
@@ -838,9 +895,9 @@
   function _availModeBtn(val, label) {
     var cur = window._availViewMode || 'lot';
     var active = val === cur
-      ? 'background:var(--accent,#3b82f6);color:#fff;border-color:var(--accent,#3b82f6);'
-      : 'background:var(--surface,#1e293b);color:var(--text-muted);border-color:var(--border,#334155);';
-    return '<button class="btn" style="font-size:12px;padding:4px 10px;' + active + '" '
+      ? 'background:var(--accent,#3b82f6);color:#fff;border:1px solid var(--accent,#3b82f6);border-radius:4px;'
+      : 'background:var(--surface,#1e293b);color:var(--text-muted);border:1px solid var(--border,#334155);border-radius:4px;';
+    return '<button class="btn" style="font-size:12px;padding:3px 10px;cursor:pointer;' + active + '" '
       + 'onclick="window._availViewMode=\'' + val + '\';window.loadAvailablePage()">' + label + '</button>';
   }
 
@@ -855,7 +912,16 @@
       if (window.getCurrentRoute() !== route) return;
       var rows = Array.isArray(res) ? res : (res.data || res.rows || res.items || []);
       if (!rows.length) {
-        c.innerHTML = '<div class="empty" style="padding:60px;text-align:center;color:var(--text-muted,#888)">✅ Available 재고 없음 (전량 배분 또는 피킹 완료)</div>';
+        c.innerHTML = '<section style="padding:12px 16px">'
+          + '<div style="display:flex;align-items:center;gap:6px;padding:8px 0 10px;flex-wrap:wrap">'
+          + '<h2 style="margin:0;font-size:14px;white-space:nowrap;flex-shrink:0">✅ AVAILABLE</h2>'
+          + '<span style="font-size:11px;color:var(--text-muted);flex-shrink:0">그룹:</span>'
+          + _availModeBtn('lot','LOT별') + _availModeBtn('container','컨테이너별') + _availModeBtn('date','입고일별')
+          + '<span style="flex:1"></span>'
+          + '<button class="btn" style="font-size:12px;padding:3px 10px;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid #ef444455;border-radius:4px" onclick="window.availCancelSelected()">↩️ →PENDING</button>'
+          + '<button class="btn" style="font-size:12px;padding:3px 10px;border-radius:4px" onclick="window.loadAvailablePage()">🔄 새로고침</button>'
+          + '</div>'
+          + '<div class="empty" style="padding:60px;text-align:center;color:var(--text-muted,#888)">✅ Available 재고 없음 (전량 배분 또는 피킹 완료)</div></section>';
         return;
       }
       var mode = window._availViewMode || 'lot';
@@ -870,12 +936,23 @@
         if (r.sample_weight_mt != null && !isNaN(Number(r.sample_weight_mt))) sumSampleMt += Number(r.sample_weight_mt);
       });
       var html = '<section style="padding:12px 16px">'
-        + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap">'
-        + '<h2 style="margin:0;font-size:16px;color:#22c55e">✅ Available 재고 — 판매 가능 물량</h2>'
-        + '<span style="font-size:12px;color:var(--text-muted)">' + rows.length + ' LOT · 📦 ' + fmtN(sumBal - sumSampleMt) + ' MT' + (sumSampleMt > 0 ? ' + 🧪 샘플 ' + fmtN(sumSampleMt) + ' MT' : '') + '</span>'
-        + '<button class="btn btn-ghost" style="font-size:12px;margin-left:auto" onclick="window.loadAvailablePage()">🔄 새로고침</button>'
-        + '<button class="btn" style="font-size:12px;padding:4px 10px;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid #ef444455" onclick="window.availCancelSelected()">↩️ 선택 취소(→PENDING)</button>'
-        + '<div style="display:flex;gap:4px">' + _availModeBtn('lot','LOT별') + _availModeBtn('container','컨테이너별') + _availModeBtn('date','입고일별') + '</div>'
+        + '<div style="display:flex;align-items:center;gap:6px;padding:8px 0 10px;flex-wrap:wrap">'
+        + '<h2 style="margin:0;font-size:14px;white-space:nowrap;flex-shrink:0">✅ AVAILABLE</h2>'
+        + '<span style="font-size:11px;color:var(--text-muted);flex-shrink:0">그룹:</span>'
+        + _availModeBtn('lot','LOT별') + _availModeBtn('container','컨테이너별') + _availModeBtn('date','입고일별')
+        + '<span style="flex:1"></span>'
+        + '<button class="btn" style="font-size:12px;padding:3px 10px;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid #ef444455;border-radius:4px" onclick="window.availCancelSelected()">↩️ →PENDING</button>'
+        + '<button class="btn" style="font-size:12px;padding:3px 10px;border-radius:4px" onclick="window.loadAvailablePage()">🔄 새로고침</button>'
+        + '</div>'
+        + '<div style="display:flex;align-items:center;gap:6px;padding:6px 0 8px;flex-wrap:wrap;border-bottom:1px solid var(--border,#334155);margin-bottom:8px">'
+        + '<span style="font-size:11px;color:var(--text-muted);flex-shrink:0">🔍 검색</span>'
+        + '<input id="avail-q" type="text" placeholder="LOT · BL · 컨테이너 · Product" style="font-size:12px;padding:3px 8px;background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:4px;color:var(--text-primary);width:180px" oninput="window._availFilter()">'
+        + '<span style="font-size:11px;color:var(--text-muted);flex-shrink:0">입고일</span>'
+        + '<input id="avail-df" type="date" style="font-size:12px;padding:2px 6px;background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:4px;color:var(--text-primary)" onchange="window._availFilter()">'
+        + '<span style="font-size:11px;color:var(--text-muted)">~</span>'
+        + '<input id="avail-dt" type="date" style="font-size:12px;padding:2px 6px;background:var(--surface,#1e293b);border:1px solid var(--border,#334155);border-radius:4px;color:var(--text-primary)" onchange="window._availFilter()">'
+        + '<button class="btn" style="font-size:12px;padding:3px 10px;border-radius:4px" onclick="window._availFilterReset()">✕ 초기화</button>'
+        + '<span id="avail-count" style="font-size:11px;color:var(--text-muted)"></span>'
         + '</div>'
         + '<div style="overflow-x:auto"><table class="data-table"><thead><tr>'
         + '<th style="width:36px;text-align:center"><input type="checkbox" onclick="window.availToggleAll(this)"></th>'
@@ -884,7 +961,7 @@
         + '<th title="총 톤백 개수 (MAXI BAG)">MXBG</th><th title="가용 톤백 수(개) — 바로 배분 가능한 톤백">Avail</th><th>Invoice</th>'
         + '<th>Arrival</th><th title="실제 창고 반입일 (Inbound Date)" style="color:#4fc3f7">🏭 Inbound</th><th>Con Return</th><th>Free</th><th>WH</th>'
         + '<th>Inbound(MT)</th><th>Location</th><th></th>'
-        + '</tr></thead><tbody>';
+        + '</tr></thead><tbody id="avail-tbody">';
       html += rows.map(function(r, i) {
         var lotKey = escapeHtml(r.lot||'');
         var hasSample = (r.sample_bags > 0);
@@ -986,6 +1063,38 @@
 
     window.loadAvailablePage = loadAvailablePage;
 
+  window._availFilter = function() {
+    var q = ((document.getElementById('avail-q')||{}).value||'').toLowerCase().trim();
+    var df = (document.getElementById('avail-df')||{}).value||'';
+    var dt = (document.getElementById('avail-dt')||{}).value||'';
+    var tbody = document.getElementById('avail-tbody');
+    var countEl = document.getElementById('avail-count');
+    if (!tbody) return;
+    var trs = tbody.querySelectorAll('tr');
+    var vis = 0, total = 0;
+    trs.forEach(function(row) {
+      var txt = row.textContent.toLowerCase();
+      var textOk = !q || txt.indexOf(q) !== -1;
+      var cells = row.cells;
+      var dateStr = cells && cells.length > 14 ? cells[14].textContent.trim() : '';
+      var dMatch = dateStr.match(/(\d{4}-\d{2}-\d{2})/);
+      var d = dMatch ? dMatch[1] : '';
+      var dateOk = (!df || !d || d >= df) && (!dt || !d || d <= dt);
+      var show = textOk && dateOk;
+      row.style.display = show ? '' : 'none';
+      total++; if (show) vis++;
+    });
+    if (countEl) countEl.textContent = vis + '/' + total + '건';
+  };
+
+  window._availFilterReset = function() {
+    var el;
+    el = document.getElementById('avail-q');  if (el) el.value = '';
+    el = document.getElementById('avail-df'); if (el) el.value = '';
+    el = document.getElementById('avail-dt'); if (el) el.value = '';
+    el = document.getElementById('avail-count'); if (el) el.textContent = '';
+    window._availFilter();
+  };
   window.availToggleAll = function(masterCb) {
     var cbs = document.querySelectorAll('.avail-cb');
     cbs.forEach(function(cb) { cb.checked = masterCb.checked; });

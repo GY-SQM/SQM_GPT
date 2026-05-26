@@ -326,7 +326,8 @@ def _tonbag_sql(lot_no_filter: Optional[str]) -> tuple:
                ),
                i.warehouse,
                i.arrival_date,
-               t.lot_no, t.is_sample
+               t.lot_no,
+               CASE WHEN COALESCE(t.sub_lt, -1) = 0 THEN 1 ELSE 0 END AS is_sample
         FROM inventory_tonbag t
         LEFT JOIN inventory i ON i.id = t.inventory_id
     """

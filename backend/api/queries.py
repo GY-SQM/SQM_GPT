@@ -521,10 +521,13 @@ def get_sold_list(limit: int = 500, start_date: str = "", end_date: str = ""):
                 s.lot_no,
                 s.customer,
                 s.sales_order_no,
+                MAX(s.bl_no)                         AS bl_no,
+                MAX(i.container_no)                  AS container_no,
                 COUNT(*)                             AS tonbag_count,
                 SUM(COALESCE(s.sold_qty_kg, 0))      AS total_kg,
                 MAX(s.sold_date)                     AS sold_date
             FROM sold_table s
+            LEFT JOIN inventory i ON i.lot_no = s.lot_no
             WHERE {where}
             GROUP BY s.lot_no, s.sales_order_no
             ORDER BY s.sold_date DESC, s.lot_no
@@ -535,6 +538,7 @@ def get_sold_list(limit: int = 500, start_date: str = "", end_date: str = ""):
             "items": _rows_to_list(rows),
             "total": len(rows),
             "columns": ["lot_no", "customer", "sales_order_no",
+                        "bl_no", "container_no",
                         "tonbag_count", "total_kg", "sold_date"]
         })
     except Exception as e:
