@@ -834,7 +834,11 @@ def main():
         _poll_thread.start()
         log.info('분리 창 폴링 스레드 시작')
         log.info("PyWebView 창 시작 (Splash 즉시 표시 모드)")
-        webview.start(on_window_started, debug=False)
+        # SQM_DEBUG=1 환경변수 또는 --debug 인자로 DevTools(F12) 활성화
+        _dbg = (os.environ.get('SQM_DEBUG', '').strip() == '1') or ('--debug' in sys.argv)
+        if _dbg:
+            log.info("DevTools(F12) ENABLED via SQM_DEBUG=1")
+        webview.start(on_window_started, debug=_dbg)
         # 창이 닫히면 webview.start() 반환 → 프로세스 강제 종료
         # (FastAPI daemon 스레드가 살아있어도 깔끔하게 종료)
         log.info("창 닫힘 — 프로세스 종료")

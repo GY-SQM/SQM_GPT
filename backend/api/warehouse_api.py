@@ -187,48 +187,186 @@ def api_rack_heatmap():
         from engine_modules.warehouse_cell_logic import (
             LEVEL_BY_RACK, WAREHOUSE_DONGS, RACK_RANGE, COL_RANGE,
         )
+        import re as _re
+        # G{dong}-{rack:02d}-{col:02d}-{level:02d} 파싱 패턴
+        _LOC_RE = _re.compile(r'^G(\d+)-(\d+)-(\d+)-(\d+)$')
+
         con = _db()
         try:
-            rows = con.execute("""
-                SELECT dong, rack, lot_no, SUM(tonbag_count) AS cnt
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # [v8.6.9-r5] 기본: inventory_tonbag.location 기반
+            # 위치 형식 G5-04-01-07 → dong=5, rack=4 파싱
+            # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            tb_rows = con.execute("""
+                SELECT t.lot_no,
+                       t.location,
+                       COALESCE(NULLIF(TRIM(i.product), ''), '-') AS product
+                FROM inventory_tonbag t
+                LEFT JOIN inventory i ON i.lot_no = t.lot_no
+                WHERE t.location IS NOT NULL
+                  AND TRIM(t.location) != ''
+                  AND t.status NOT IN ('SOLD', 'RETURNED', 'PENDING')
+            """).fetchall()
+
+            # lot_location_map 폴백 (inventory_tonbag에 위치 없는 경우 보완)
+            llm_rows = con.execute("""
+                SELECT dong,
+                       rack,
+                       col,
+                       level,
+                       lot_no,
+                       COALESCE(NULLIF(TRIM(product), ''), '-') AS product
                 FROM lot_location_map
                 WHERE dong IS NOT NULL AND rack IS NOT NULL AND lot_no IS NOT NULL
-                GROUP BY dong, rack, lot_no
-                ORDER BY dong, rack, cnt DESC
             """).fetchall()
+
+            # ── 오늘 입고 LOT ──
+            today_lots_rows = con.execute("""
+                SELECT DISTINCT lot_no
+                FROM inventory_tonbag
+                WHERE lot_no IS NOT NULL
+                  AND DATE(COALESCE(inbound_date, created_at), 'localtime')
+                      = DATE('now', 'localtime')
+            """).fetchall()
+            today_inbound_lots = [r['lot_no'] for r in today_lots_rows]
+
+            # ── 미배정 톤백 수 ──
+            unassigned_row = con.execute("""
+                SELECT COUNT(*) AS cnt
+                FROM inventory_tonbag
+                WHERE (location IS NULL OR TRIM(location) = '')
+                  AND status NOT IN ('SOLD', 'RETURNED', 'PENDING')
+            """).fetchone()
+            unassigned_count = int(unassigned_row['cnt'] or 0)
+
         finally:
             con.close()
 
         from collections import defaultdict
-        rack_data = defaultdict(lambda: {'occupied': 0, 'lots': [], 'lot_counts': {}})
-        for r in rows:
-            d, rk = r['dong'], r['rack']
-            lot, cnt = r['lot_no'] or '', r['cnt']
-            key = (d, rk)
-            rack_data[key]['occupied'] += cnt
-            rack_data[key]['lot_counts'][lot] = cnt
+        rack_data = defaultdict(lambda: {
+            'occupied_cells': set(),
+            'lots': [],
+            'lot_cells': defaultdict(set),
+            'lot_products': {},
+        })
+
+        # ── 1차: inventory_tonbag.location 파싱 ──
+        tb_parsed = 0
+        for r in tb_rows:
+            lot = r['lot_no'] or ''
+            loc = r['location'] or ''
+            m   = _LOC_RE.match(loc.strip())
+            if not m:
+                continue
+            dong_v, rack_v = int(m.group(1)), int(m.group(2))
+            col_v, level_v = int(m.group(3)), int(m.group(4))
+            if dong_v not in WAREHOUSE_DONGS:
+                continue
+            if not (RACK_RANGE[0] <= rack_v <= RACK_RANGE[1]):
+                continue
+            if not (COL_RANGE[0] <= col_v <= COL_RANGE[1]):
+                continue
+            max_lv = LEVEL_BY_RACK.get(rack_v, 0)
+            if not (1 <= level_v <= max_lv):
+                continue
+            key = (dong_v, rack_v)
+            cell_key = (col_v, level_v)
+            rack_data[key]['occupied_cells'].add(cell_key)
+            if lot:
+                rack_data[key]['lot_cells'][lot].add(cell_key)
+                product = str(r['product'] or '-').strip()
+                if product and product != '-':
+                    rack_data[key]['lot_products'][lot] = product
             if lot and lot not in rack_data[key]['lots']:
                 rack_data[key]['lots'].append(lot)
+            tb_parsed += 1
+
+        # ── 2차: lot_location_map 보완 ──
+        # 실제 톤백 위치가 있는 셀은 그대로 두고, 아직 비어 있는 셀만 위치맵으로 채운다.
+        # 특정 동(예: 6동)이 lot_location_map에만 존재해도 동별 현황에서 누락되지 않게 한다.
+        llm_added = 0
+        for r in llm_rows:
+            if r['col'] is None or r['level'] is None:
+                continue
+            d, rk = int(r['dong']), int(r['rack'])
+            col_v, level_v = int(r['col']), int(r['level'])
+            lot = r['lot_no'] or ''
+            if d not in WAREHOUSE_DONGS:
+                continue
+            if not (RACK_RANGE[0] <= rk <= RACK_RANGE[1]):
+                continue
+            if not (COL_RANGE[0] <= col_v <= COL_RANGE[1]):
+                continue
+            max_lv = LEVEL_BY_RACK.get(rk, 0)
+            if not (1 <= level_v <= max_lv):
+                continue
+            key = (d, rk)
+            cell_key = (col_v, level_v)
+            if cell_key in rack_data[key]['occupied_cells']:
+                continue
+            rack_data[key]['occupied_cells'].add(cell_key)
+            if lot:
+                rack_data[key]['lot_cells'][lot].add(cell_key)
+                product = str(r['product'] or '-').strip()
+                if product and product != '-':
+                    rack_data[key]['lot_products'][lot] = product
+            if lot and lot not in rack_data[key]['lots']:
+                rack_data[key]['lots'].append(lot)
+            llm_added += 1
 
         result = []
+        dong_summary = {}
         for dong in WAREHOUSE_DONGS:
+            dong_occ, dong_total = 0, 0
             for rack in range(RACK_RANGE[0], RACK_RANGE[1] + 1):
-                max_lv = LEVEL_BY_RACK.get(rack, 0)
+                max_lv     = LEVEL_BY_RACK.get(rack, 0)
                 total_cells = (COL_RANGE[1] - COL_RANGE[0] + 1) * max_lv
-                key = (dong, rack)
-                info = rack_data.get(key, {})
-                lot_counts = info.get('lot_counts', {})
-                dominant = max(lot_counts, key=lot_counts.get) if lot_counts else ''
+                key        = (dong, rack)
+                info       = rack_data.get(key, {})
+                lot_counts = {
+                    lot: len(cells)
+                    for lot, cells in (info.get('lot_cells') or {}).items()
+                }
+                lot_products = info.get('lot_products') or {}
+                product_names = []
+                for lot in sorted(lot_counts.keys()):
+                    product = lot_products.get(lot, '-')
+                    if product and product not in product_names:
+                        product_names.append(product)
+                dominant   = max(lot_counts, key=lot_counts.get) if lot_counts else ''
+                occ        = len(info.get('occupied_cells') or set())
+                rack_pct   = round(occ / total_cells * 100, 1) if total_cells else 0.0
+                dong_occ   += occ
+                dong_total += total_cells
                 result.append({
                     'dong':         dong,
                     'rack':         rack,
                     'rack_label':   f'{rack:02d}',
                     'dominant_lot': dominant,
-                    'occupied':     info.get('occupied', 0),
+                    'occupied':     occ,
                     'total':        total_cells,
+                    'occupancy_pct': rack_pct,
+                    'lot_count':    len(lot_counts),
+                    'products':     product_names,
                     'lots':         info.get('lots', []),
                 })
-        return ok_response({'racks': result})
+            dong_pct = round(dong_occ / dong_total * 100, 1) if dong_total else 0.0
+            dong_summary[str(dong)] = {
+                'occupied':      dong_occ,
+                'total':         dong_total,
+                'occupancy_pct': dong_pct,
+                'alert_90':      dong_pct >= 90.0,
+            }
+
+        return ok_response({
+            'racks':              result,
+            'today_inbound_lots': today_inbound_lots,
+            'unassigned_count':   unassigned_count,
+            'dong_summary':       dong_summary,
+            'data_source':        'tonbag_location+lot_location_map' if tb_parsed and llm_added else (
+                'tonbag_location' if tb_parsed > 0 else 'lot_location_map'
+            ),
+        })
     except Exception as e:
         logger.error('rack-heatmap error: %s', e)
         return err_response(str(e))

@@ -2025,7 +2025,8 @@ body {
 .sqm-float-modal div:has(> table.data-table),
 .sqm-float-modal div:has(> table.sqm-table) {
   max-width: 100% !important;
-  overflow: auto !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
   scrollbar-gutter: stable both-edges;
 }
 table.data-table,
@@ -2033,6 +2034,95 @@ table.sqm-table {
   min-width: 100%;
   width: max-content;
 }
+
+/* Sticky table headers: keep column labels visible while table bodies scroll. */
+.data-table thead th,
+.sqm-table thead th,
+.inventory-table thead th,
+#sqm-modal-content table thead th,
+.sqm-float-modal .sqm-float-body table thead th,
+.page-content table thead th,
+.dashboard-container table thead th,
+#dashboard-container table thead th,
+.page table thead th,
+#page-container table thead th {
+  position: sticky !important;
+  top: 0;
+  z-index: 20 !important;
+  background: var(--table-header) !important;
+  box-shadow: 0 1px 0 var(--sqm-table-grid-border), 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* Legacy inline tables sometimes use the first row as a header without <thead>. */
+#sqm-modal-content table > tbody:first-child > tr:first-child > th,
+#sqm-modal-content table > tr:first-child > th,
+.sqm-float-modal .sqm-float-body table > tbody:first-child > tr:first-child > th,
+.sqm-float-modal .sqm-float-body table > tr:first-child > th,
+.page-content table > tbody:first-child > tr:first-child > th,
+.page-content table > tr:first-child > th,
+.dashboard-container table > tbody:first-child > tr:first-child > th,
+.dashboard-container table > tr:first-child > th,
+#dashboard-container table > tbody:first-child > tr:first-child > th,
+#dashboard-container table > tr:first-child > th,
+.page table > tbody:first-child > tr:first-child > th,
+.page table > tr:first-child > th,
+#page-container table > tbody:first-child > tr:first-child > th,
+#page-container table > tr:first-child > th {
+  position: sticky !important;
+  top: 0;
+  z-index: 20 !important;
+  background: var(--table-header) !important;
+  box-shadow: 0 1px 0 var(--sqm-table-grid-border), 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.inventory-table thead tr.inventory-filter-row th {
+  top: 34px !important;
+  z-index: 21 !important;
+}
+
+.data-table thead,
+.sqm-table thead,
+.inventory-table thead,
+#sqm-modal-content table thead,
+.sqm-float-modal .sqm-float-body table thead,
+.page-content table thead,
+.dashboard-container table thead,
+#dashboard-container table thead,
+.page table thead,
+#page-container table thead {
+  position: relative;
+  z-index: 19;
+}
+
+.data-table-wrap,
+.inventory-table-wrap,
+.lot-detail-table-wrap,
+.integrity-table-wrap,
+.sqm-table-scroll,
+#sqm-modal-content div:has(> table),
+.sqm-float-modal div:has(> table),
+#dashboard-container div:has(> table),
+#page-container div:has(> table),
+.page div:has(> table) {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+
+/* Keep vertical sticky headers tied to the real scrolling surface.
+   Inline max-height table panels still need their own vertical scroll. */
+.data-table-wrap[style*="max-height"],
+.inventory-table-wrap[style*="max-height"],
+.lot-detail-table-wrap[style*="max-height"],
+.integrity-table-wrap[style*="max-height"],
+.sqm-table-scroll[style*="max-height"],
+#sqm-modal-content div[style*="max-height"]:has(> table),
+.sqm-float-modal div[style*="max-height"]:has(> table),
+#dashboard-container div[style*="max-height"]:has(> table),
+#page-container div[style*="max-height"]:has(> table),
+.page div[style*="max-height"]:has(> table) {
+  overflow: auto !important;
+}
+
 .sqm-table-export-bar {
   display: flex;
   justify-content: flex-end;

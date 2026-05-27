@@ -141,6 +141,23 @@ _run_db_migrations()
 app = FastAPI(title="SQM Inventory API", version="8.6.4")
 
 
+# ── 정적 파일 캐시 무효화 미들웨어 ──────────────────────────────────────────
+# PyWebView(WebView2)가 .js/.css/.html 을 강하게 캐시해서 코드 변경이
+# 반영 안 되는 문제 방지. 운영 EXE 배포 시 다시 평가.
+@app.middleware("http")
+async def _no_cache_static_assets(request: Request, call_next):
+    response = await call_next(request)
+    try:
+        path = request.url.path or ""
+        if path.endswith((".js", ".css", ".html")) or path == "/" or path == "":
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+    except Exception:
+        pass
+    return response
+
+
 # ── Swagger UI 브라우저 열기 ─────────────────────────────────────────────────
 @app.get("/api/system/open-docs", tags=["system"],
          summary="📖 Swagger UI를 기본 브라우저에서 열기")

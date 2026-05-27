@@ -19,7 +19,15 @@ h1 { font-size: 15px; font-weight: 600; flex: 1; }
 .badge-err { background: rgba(220,38,38,.15); color: #f87171; border: 1px solid #dc2626; }
 table { width: 100%; border-collapse: collapse; margin-top: 12px; }
 th, td { padding: 6px 10px; border: 1px solid var(--border, #334155); font-size: 12px; text-align: left; }
-th { background: var(--surface, #1e293b); color: var(--text-muted, #94a3b8); font-weight: 600; }
+th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface, #1e293b);
+  color: var(--text-muted, #94a3b8);
+  font-weight: 600;
+  box-shadow: 0 1px 0 var(--border, #334155), 0 2px 8px rgba(0,0,0,.18);
+}
 tr:hover td { background: rgba(255,255,255,.03); }
 </style>
 </head>
