@@ -693,6 +693,7 @@ async def onestop_inbound_upload(
     manual_arrival: str = Form("", description="manual ARRIVAL date (YYYY-MM-DD) fallback when DO absent"),
     manual_con_return: str = Form("", description="manual CON RETURN date (YYYY-MM-DD) fallback when DO absent"),
     use_gemini: bool = Form(False, description="True=좌표+Gemini 병행 파싱 (비교 모드)"),
+    job_id: str = Form("", description="SSE 진행 스트림 job ID (선택 — 빈 값이면 진행 push 안 함)"),
 ):
     """
     4종 PDF 를 업로드하면 파싱 + 크로스체크 (+ 선택적 PL DB 저장) 수행.
@@ -706,6 +707,30 @@ async def onestop_inbound_upload(
     v864-2 워크플로우를 따르려면 `dry_run=True` 로 파싱 → 프론트에서 편집 →
     `/api/inbound/onestop-save` 호출로 최종 저장.
     """
+    # ── SSE 진행 push helper (job_id 가 있을 때만 활성) ─────────────────
+    try:
+        from backend.api import parse_progress as _pp_mod
+    except Exception:
+        _pp_mod = None
+    def _emit(stage: str, **kw):
+        if _pp_mod and job_id:
+            try:
+                _pp_mod.emit_event(job_id, "step", {"stage": stage, **kw})
+            except Exception:
+                pass
+    def _emit_evt(event: str, **kw):
+        if _pp_mod and job_id:
+            try:
+                _pp_mod.emit_event(job_id, event, kw)
+            except Exception:
+                pass
+    if _pp_mod and job_id:
+        _pp_mod.register_job(job_id)  # 프론트가 미리 register 했더라도 idempotent
+
+    _emit("upload_received",
+          files=[(k, getattr(uf, "filename", None)) for k, uf in
+                 (("pl", pl), ("bl", bl), ("invoice", invoice), ("do", do_file))])
+
     # 1. 각 파일 임시 저장
     inputs = [
         ("pl", pl, True),
@@ -786,13 +811,30 @@ async def onestop_inbound_upload(
         if template_id and effective_packing_type not in {"A", "B", "C"}:
             effective_packing_type = _normalize_packing_type("", bag_weight_kg)
 
-        parsed = {
-            "packing_list": _parse_one(parser, tmp_paths["pl"], "parse_packing_list", **pl_kwargs),
-            "bl":           _parse_one(parser, tmp_paths["bl"], "parse_bl", **({} if not effective_carrier_id else {"carrier_id": effective_carrier_id})),
-            "invoice":      _parse_one(parser, tmp_paths["invoice"], "parse_invoice"),
-            "do":           _parse_one(parser, tmp_paths["do"], "parse_do", **({} if not effective_carrier_id else {"carrier_id": effective_carrier_id})),
-        }
+        # ── 4종 PDF 순차 파싱 (각 단계마다 SSE push) ───────────────────
+        parsed = {}
+        _emit("pl_start", filename=getattr(pl, "filename", None))
+        parsed["packing_list"] = _parse_one(parser, tmp_paths["pl"], "parse_packing_list", **pl_kwargs)
+        _emit("pl_done",
+              rows=(len(getattr(parsed["packing_list"], "rows", []) or []) if parsed["packing_list"] else 0),
+              ok=parsed["packing_list"] is not None)
+
+        _emit("bl_start", filename=getattr(bl, "filename", None) if bl else None)
+        parsed["bl"] = _parse_one(parser, tmp_paths["bl"], "parse_bl",
+                                  **({} if not effective_carrier_id else {"carrier_id": effective_carrier_id}))
+        _emit("bl_done", ok=parsed["bl"] is not None)
+
+        _emit("invoice_start", filename=getattr(invoice, "filename", None) if invoice else None)
+        parsed["invoice"] = _parse_one(parser, tmp_paths["invoice"], "parse_invoice")
+        _emit("invoice_done", ok=parsed["invoice"] is not None)
+
+        _emit("do_start", filename=getattr(do_file, "filename", None) if do_file else None)
+        parsed["do"] = _parse_one(parser, tmp_paths["do"], "parse_do",
+                                  **({} if not effective_carrier_id else {"carrier_id": effective_carrier_id}))
+        _emit("do_done", ok=parsed["do"] is not None)
+
         # ── parse_alarm 체크 (v8.6.6) ──────────────────────────────
+        _emit("alarm_check_start")
         _alarm_reports: dict = {}
         try:
             from utils.parse_alarm import check_bl, check_do, check_invoice, check_packing
@@ -811,6 +853,9 @@ async def onestop_inbound_upload(
         except Exception as _ae:
             logger.warning(f"[onestop] parse_alarm 실행 실패 (건너뜀): {_ae}")
             _alarm_reports = {}
+        _emit("alarm_check_done",
+              warns=len(_warn_messages),
+              criticals=sum(1 for m in _warn_messages if "CRITICAL" in m))
 
         if parsed["packing_list"] is None:
             raise HTTPException(422, "Packing List 파싱 실패 (최소 1종은 파싱되어야 합니다)")
@@ -1024,6 +1069,18 @@ async def onestop_inbound_upload(
                 saved_result = {"ok": False, "message": f"DB 저장 실패: {e}"}
 
         # 6. 응답 조립
+        _emit("response_build",
+              preview_rows=len(preview_rows),
+              cross_check=str(xc_summary or "")[:120])
+        if _pp_mod and job_id:
+            try:
+                _pp_mod.finish_job(job_id, summary={
+                    "rows": len(preview_rows),
+                    "warnings": len(_warn_messages),
+                    "cross_check": str(xc_summary or "")[:200],
+                })
+            except Exception:
+                pass
         return {
             "ok": True,
             "message": (
@@ -1140,6 +1197,15 @@ async def onestop_inbound_upload(
                 "weight_rollups": _onestop_weight_rollups(preview_rows, pl_obj),
             },
         }
+    except Exception as _onestop_err:
+        # 파싱 실패 시 SSE 에러 이벤트 + job 종료
+        if _pp_mod and job_id:
+            try:
+                _pp_mod.emit_event(job_id, "error", {"message": str(_onestop_err)[:300]})
+                _pp_mod.finish_job(job_id, summary={"error": str(_onestop_err)[:300]})
+            except Exception:
+                pass
+        raise
     finally:
         for p in tmp_paths.values():
             if p and os.path.exists(p):

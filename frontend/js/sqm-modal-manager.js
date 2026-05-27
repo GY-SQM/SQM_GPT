@@ -40,7 +40,7 @@
     catch (e) {}
   }
   // 시작 로그는 항상 출력 (사용자가 로드 여부 확인 가능)
-  try { console.info('[sqm-modal-mgr] v8.6.9-r8 loaded'); } catch (e) {}
+  try { console.info('[sqm-modal-mgr] v8.6.9-r9 loaded'); } catch (e) {}
 
   /* ── 상수 ─────────────────────────────────────────────────────────────── */
   var STORAGE_KEY = 'sqm_win_prefs';   // localStorage 키
@@ -59,6 +59,8 @@
     'sqm-warehouse-dashboard',     // 입고 메뉴 창고 대시보드 메인창
     // ── 원스톱 입고 ──
     'sqm-parse-result',            // 파싱 결과 창
+    'sqm-parse-log',               // 파싱 로그
+    'sqm-onestop-parse-stream',    // 파싱 실시간 스트림 (SSE)
     'sqm-gemini-compare',          // Gemini 비교 창
     // ── 기타 기능 창 ──
     'sqm-case3-dialog',            // Case3 다이얼로그
@@ -67,8 +69,27 @@
     'sqm-locmap-import-modal',     // 위치맵 임포트 모달
     'sqm-weight-panel',            // 무게 현황 패널
     'sqm-tonbag-picker',
+    'tonbag-modal',                // 톤백 보기 모달
+    'status-revert-panel',         // 상태 되돌리기 패널
+    'sqm-debug-panel',             // 디버그 패널
   ];
   var TARGET_CLASS = 'sqm-managed-window';
+
+  // 자동 감지 제외 (위젯/토스트/툴팁/배너 등 — 리사이즈 의미 없음)
+  var EXCLUDE_IDS = {
+    'sqm-tooltip': 1,
+    'toast-container': 1,
+    'sqm-offline-banner': 1,
+    'wh-mode-toggle': 1,
+    'wh-lot-search-wrap': 1,
+    'wh-embed-tip': 1,
+    'allocation-footer': 1,
+    'scan-history-footer': 1,
+    'tonbag-page-footer': 1,
+    'move-history-footer': 1,
+    'pending-ctx-menu': 1,
+    // 확인용 작은 오버레이는 자동 감지하되 사이즈가 작아 의미 미미
+  };
 
   /* ── localStorage ─────────────────────────────────────────────────────── */
   function _loadPrefs() {
@@ -250,12 +271,16 @@
     if (!pref) return;
     el.style.transform = 'none';
     el.style.margin    = '0';
-    el.style.maxWidth  = 'none';
-    el.style.maxHeight = 'none';
-    if (pref.w) el.style.width  = pref.w + 'px';
-    if (pref.h) el.style.height = pref.h + 'px';
+    // !important 까지 덮어 max-* / min-* 강제 해제
+    el.style.setProperty('max-width',  'none', 'important');
+    el.style.setProperty('max-height', 'none', 'important');
+    el.style.setProperty('min-width',  '0',    'important');
+    el.style.setProperty('min-height', '0',    'important');
+    if (pref.w) el.style.setProperty('width',  pref.w + 'px', 'important');
+    if (pref.h) el.style.setProperty('height', pref.h + 'px', 'important');
     if (pref.x != null) el.style.left = pref.x + 'px';
     if (pref.y != null) el.style.top  = pref.y + 'px';
+    _log('restorePref', id, pref);
   }
 
   /* ── ★ 글로벌 강제 닫기 위임 ──────────────────────────────────────────
@@ -514,9 +539,14 @@
               el.style.transform = 'translate(-50%, -50%)';
             }
           } else {
-            // 다시 표시될 때 → _liberate + 저장된 위치 복원
+            // 다시 표시될 때 → _liberate + 저장된 위치/크기 복원
+            //   max-* 잠금 + setProperty important 적용
             setTimeout(function() {
               _liberate(el);
+              el.style.setProperty('max-width',  'none', 'important');
+              el.style.setProperty('max-height', 'none', 'important');
+              el.style.setProperty('min-width',  '0',    'important');
+              el.style.setProperty('min-height', '0',    'important');
               _restorePref(el, id);
             }, 10);
           }
@@ -568,11 +598,13 @@
     // 자유화 (오버레이에서 body로)
     _liberate(el);
 
-    // position:fixed 보장
-    el.style.position  = 'fixed';
+    // position:fixed 보장 + 인라인 max-* 강제 해제 (!important 까지 덮음)
+    el.style.setProperty('position', 'fixed', 'important');
     el.style.transform = 'none';
-    el.style.maxWidth  = 'none';
-    el.style.maxHeight = 'none';
+    el.style.setProperty('max-width',  'none', 'important');
+    el.style.setProperty('max-height', 'none', 'important');
+    el.style.setProperty('min-width',  '0',    'important');
+    el.style.setProperty('min-height', '0',    'important');
     // overflow:hidden → 리사이즈 핸들이 잘리지 않도록 visible로
     el.style.overflow  = 'visible';
     // 내부 스크롤 컨테이너(body 역할 div)는 그대로 — 첫번째 flex 자식 중 overflow:auto인 것
@@ -620,8 +652,9 @@
 
     /* ── 8방향 리사이즈 ── */
     ['n','s','e','w','ne','nw','se','sw'].forEach(function(dir) {
-      // 이미 있으면 재생성 방지
-      if (el.querySelector('.sqm-rh-' + dir)) return;
+      // 기존 핸들 제거(sqm-util-modal._makeDraggableResizable 등이 만든 것) — 저장 기능 없는 옛 핸들러 교체
+      var existing = el.querySelectorAll('.sqm-rh-' + dir);
+      Array.prototype.forEach.call(existing, function(old) { try { old.remove(); } catch (e) {} });
       var h   = document.createElement('div');
       h.className = 'sqm-rh sqm-rh-' + dir;
       el.appendChild(h);
@@ -715,6 +748,43 @@
       if (!el.id) el.id = id;
       _applyManager(el, id);
     });
+    // ★ 자동 감지 — body 직속 + position:fixed + 일정 크기 이상 + 닫기 버튼 보유
+    _autoDetect();
+  }
+
+  /* ── ★ 자동 감지: 등록 안 된 모달도 일반 휴리스틱으로 잡아 관리 ──────── */
+  function _autoDetect() {
+    var children = document.body.children;
+    for (var i = 0; i < children.length; i++) {
+      var el = children[i];
+      if (el.nodeType !== 1) continue;
+      if (_processed.has(el)) continue;
+      if (el.id && EXCLUDE_IDS[el.id]) continue;
+      if (el.hasAttribute && el.hasAttribute('data-sqm-no-manage')) continue;
+      var cs = window.getComputedStyle(el);
+      if (cs.position !== 'fixed') continue;
+      // 화면 전체 backdrop overlay는 _liberate가 inner를 옮기는 케이스 — 제외
+      // (inset:0인 백드롭의 inner는 별도로 처리됨)
+      var insetZero = (cs.inset === '0px' ||
+        (cs.top === '0px' && cs.left === '0px' && cs.right === '0px' && cs.bottom === '0px'));
+      if (insetZero) continue;  // backdrop overlay 자체는 리사이즈 불필요
+      // 크기 휴리스틱 — 충분히 큰 패널/모달만
+      var r = el.getBoundingClientRect();
+      if (r.width < 280 || r.height < 160) continue;
+      // 닫기 버튼이 있는가? (모달/패널의 가장 강한 신호)
+      var hasClose = el.querySelector(
+        '[id$="-close"],[id$="-cancel"],.modal-close,.btn-close,.close-btn,.sqm-close,'
+        + 'button[onclick*="display"][onclick*="none"],button[onclick*=".remove("]'
+      );
+      // 또는 z-index가 충분히 높으면 모달성
+      var z = parseInt(cs.zIndex, 10) || 0;
+      if (!hasClose && z < 1000) continue;
+      // 등록!
+      var id = el.id || ('sqm-auto-' + Math.random().toString(36).slice(2, 7));
+      if (!el.id) el.id = id;
+      _log('autoDetect attach', id, 'w=' + Math.round(r.width), 'h=' + Math.round(r.height), 'z=' + z);
+      _applyManager(el, id);
+    }
   }
 
   /* ── MutationObserver: 동적 생성 창 자동 감지 ───────────────────────── */
@@ -733,6 +803,10 @@
           if (!node.id) node.id = wid;
           setTimeout(function(){ _applyManager(node, wid); }, 30);
           return;
+        }
+        // ★ body 직속 동적 모달도 자동 감지
+        if (node.parentElement === document.body) {
+          setTimeout(_autoDetect, 50);
         }
         // 자손 중 대상 탐색
         TARGET_IDS.forEach(function(id) {
@@ -771,7 +845,10 @@
         var ev = new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27 });
         document.dispatchEvent(ev);
       },
-      version: 'v8.6.9-r8',
+      version: 'v8.6.9-r9',
+      // 진단/리셋 헬퍼
+      resetPrefs: function() { localStorage.removeItem(STORAGE_KEY); _log('all prefs cleared'); },
+      autoDetect: _autoDetect,
     };
   }
 

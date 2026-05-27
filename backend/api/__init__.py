@@ -12,7 +12,7 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from typing import Optional, List
 import logging
 
@@ -156,6 +156,61 @@ async def _no_cache_static_assets(request: Request, call_next):
     except Exception:
         pass
     return response
+
+
+# ── OneStop 파싱 진행 SSE 스트림 ─────────────────────────────────────────────
+# 파싱 시작 시 프론트가 register → onestop-upload(job_id) 호출 → 이 엔드포인트로
+# EventSource 연결 → 백엔드가 단계마다 emit_event(...) → 실시간 push
+from backend.api import parse_progress as _pp
+import asyncio as _asyncio
+
+
+@app.get("/api/onestop/parse-stream/{job_id}", tags=["onestop"],
+         summary="📡 파싱 진행 실시간 스트림 (SSE)")
+async def onestop_parse_stream(job_id: str):
+    """text/event-stream 으로 파싱 진행 이벤트를 push."""
+    async def gen():
+        sent = 0
+        # 백엔드 파싱이 register 보다 약간 늦을 수 있어 최대 3초 대기
+        wait_register_until = _asyncio.get_event_loop().time() + 3.0
+        while True:
+            events, done, exists = _pp.get_events_since(job_id, sent)
+            if not exists:
+                # 아직 등록 안 됨 — 잠시 기다림
+                if _asyncio.get_event_loop().time() > wait_register_until:
+                    yield "event: error\ndata: {\"msg\":\"job_not_found\"}\n\n"
+                    return
+                await _asyncio.sleep(0.1)
+                continue
+            for ev in events:
+                yield _pp.format_sse(ev)
+            sent += len(events)
+            if done:
+                break
+            await _asyncio.sleep(0.15)
+            # heartbeat (긴 대기 시 keep-alive)
+            if len(events) == 0:
+                yield ": keepalive\n\n"
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-store, no-transform",
+            "X-Accel-Buffering": "no",  # nginx 등 buffer 끄기
+            "Connection": "keep-alive",
+        },
+    )
+
+
+@app.post("/api/onestop/parse-progress/register", tags=["onestop"],
+          summary="파싱 진행 job 등록 (프론트가 jobId 사전 등록 용)")
+def onestop_parse_register(payload: dict):
+    job_id = (payload or {}).get("job_id", "").strip()
+    if not job_id:
+        raise HTTPException(400, "job_id 누락")
+    _pp.register_job(job_id)
+    return {"ok": True, "job_id": job_id}
 
 
 # ── Swagger UI 브라우저 열기 ─────────────────────────────────────────────────
