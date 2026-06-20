@@ -157,7 +157,8 @@
       "Bash(awk 'NR>=208 && NR<=215{print NR\": \"$0}' frontend/js/sqm-inline.js)",
       "Bash(awk 'NR>=760 && NR<=772{print NR\": \"$0}' frontend/js/sqm-inline.js)",
       "Bash(node --check frontend/js/sqm-page-summary.js)",
-      "Bash(node --check frontend/js/sqm-modal-manager.js)"
+      "Bash(node --check frontend/js/sqm-modal-manager.js)",
+      "Bash(xargs -0 -I {})"
     ]
   }
 }
